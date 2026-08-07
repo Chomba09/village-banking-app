@@ -70,7 +70,14 @@ class LoanCreateSerializer(serializers.ModelSerializer):
 class LoanStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan
-        fields = ['id', 'status', 'approved_at', 'due_date']
+        fields = ['id', 'status', 'approved_at', 'due_date', 'interest_rate']
+
+    def validate(self, data):
+        if data.get('status') == 'approved' and not data.get('interest_rate'):
+            raise serializers.ValidationError(
+                {'interest_rate': 'Interest rate is required when approving a loan.'}
+            )
+        return data
 
     def update(self, instance, validated_data):
         if validated_data.get('status') == 'approved':
