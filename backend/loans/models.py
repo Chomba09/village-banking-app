@@ -23,7 +23,7 @@ class Loan(models.Model):
         related_name='loans'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('5.00'))
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     purpose = models.TextField(blank=True, null=True)
     applied_at = models.DateTimeField(auto_now_add=True)
@@ -32,6 +32,8 @@ class Loan(models.Model):
 
     @property
     def interest_amount(self):
+        if self.interest_rate is None:
+            return Decimal('0.00')
         return (self.amount * self.interest_rate / Decimal('100')).quantize(Decimal('0.01'))
 
     @property
@@ -40,15 +42,13 @@ class Loan(models.Model):
 
     @property
     def total_repaid(self):
+        from django.db.models import Sum
         result = self.repayments.aggregate(total=Sum('amount'))['total']
         return result if result is not None else Decimal('0.00')
 
     @property
     def balance_remaining(self):
         return (self.total_due - self.total_repaid).quantize(Decimal('0.01'))
-
-    def __str__(self):
-        return f"{self.member.username} - {self.amount} ({self.status})"
 
 
 class LoanRepayment(models.Model):
