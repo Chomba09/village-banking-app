@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'groups',
     'contributions',
     'loans',
+    'dashboard',
 ]
 
 MIDDLEWARE = [
