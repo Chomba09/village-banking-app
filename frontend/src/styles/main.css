@@ -6,7 +6,7 @@
 
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f2eaf3;
+  background-color: #e6baec;
   color: #1a202c;
 }
 
@@ -20,7 +20,7 @@ body {
 }
 
 .auth-card {
-  background: white;
+  background: #f9f7f9;
   padding: 40px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -129,7 +129,7 @@ body {
 }
 
 .auth-link a {
-  color: #1a56db;
+  color: #ae1adb;
   text-decoration: none;
   font-weight: 500;
 }
@@ -140,7 +140,7 @@ body {
 
 /* Navbar */
 .navbar {
-  background-color: #1a56db;
+  background-color: #cd1ce4;
   color: white;
   padding: 14px 24px;
   display: flex;
@@ -173,7 +173,7 @@ body {
 
 .btn-logout {
   background-color: white;
-  color: #1a56db;
+  color: #b11adb;
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
@@ -190,7 +190,7 @@ body {
 /* Dashboard layout */
 .dashboard-container {
   min-height: 100vh;
-  background-color: #f0f4f8;
+  background-color: #e6baec;
 }
 
 .dashboard-content {
@@ -349,5 +349,5 @@ tr:last-child td {
   justify-content: center;
   min-height: 100vh;
   font-size: 16px;
-  color: #718096;
+  color: #967190;
 }
