@@ -7,6 +7,8 @@ from .serializers import (
     LoanStatusSerializer,
     LoanRepaymentSerializer
 )
+from notifications.utils import send_notification
+from transactions.models import Transaction
 
 
 class IsTreasurer(permissions.BasePermission):
@@ -57,10 +59,46 @@ class LoanStatusUpdateView(generics.UpdateAPIView):
             group__treasurer=self.request.user
         )
 
+    def perform_update(self, serializer):
+        loan = serializer.save()
+        if loan.status == 'approved':
+            Transaction.objects.create(
+                member=loan.member,
+                group=loan.group,
+                transaction_type='loan_disbursement',
+                amount=loan.amount,
+                status='approved',
+                note=f'Loan approved by treasurer'
+            )
+            send_notification(
+                loan.member,
+                f'Your loan of K{loan.amount} from {loan.group.name} has been approved. Interest rate: {loan.interest_rate}%. Total due: K{loan.total_due}.'
+            )
+        elif loan.status == 'rejected':
+            send_notification(
+                loan.member,
+                f'Your loan application of K{loan.amount} from {loan.group.name} has been rejected.'
+            )
+
 
 class LoanRepaymentView(generics.CreateAPIView):
     serializer_class = LoanRepaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        repayment = serializer.save()
+        Transaction.objects.create(
+            member=repayment.loan.member,
+            group=repayment.loan.group,
+            transaction_type='loan_repayment',
+            amount=repayment.amount,
+            status='approved',
+            note=f'Repayment for loan #{repayment.loan.id}'
+        )
+        send_notification(
+            repayment.loan.member,
+            f'Your repayment of K{repayment.amount} for loan #{repayment.loan.id} has been recorded. Remaining balance: K{repayment.loan.balance_remaining}.'
+        )
 
 
 class LoanDetailView(generics.RetrieveAPIView):

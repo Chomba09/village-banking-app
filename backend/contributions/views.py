@@ -7,6 +7,8 @@ from .serializers import (
     ContributionStatusSerializer
 )
 from groups.models import Group
+from notifications.utils import send_notification
+from transactions.models import Transaction
 
 
 class IsTreasurer(permissions.BasePermission):
@@ -56,3 +58,24 @@ class ContributionStatusUpdateView(generics.UpdateAPIView):
         return Contribution.objects.filter(
             group__treasurer=self.request.user
         )
+
+    def perform_update(self, serializer):
+        contribution = serializer.save()
+        if contribution.status == 'confirmed':
+            Transaction.objects.create(
+                member=contribution.member,
+                group=contribution.group,
+                transaction_type='contribution',
+                amount=contribution.amount,
+                status='approved',
+                note=f'Contribution confirmed by treasurer'
+            )
+            send_notification(
+                contribution.member,
+                f'Your contribution of K{contribution.amount} to {contribution.group.name} has been confirmed.'
+            )
+        elif contribution.status == 'rejected':
+            send_notification(
+                contribution.member,
+                f'Your contribution of K{contribution.amount} to {contribution.group.name} has been rejected.'
+            )
