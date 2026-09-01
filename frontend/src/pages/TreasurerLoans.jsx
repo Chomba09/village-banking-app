@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Navbar from '../components/Navbar'
+import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function TreasurerLoans() {
@@ -78,9 +78,8 @@ function TreasurerLoans() {
   if (loading) return <div className="loading">Loading loans...</div>
 
   return (
-    <div className="dashboard-container">
-      <Navbar />
-      <div className="dashboard-content">
+    <DashboardLayout title="Loans Management">
+      <div>
         <button
           onClick={() => navigate('/treasurer/dashboard')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a56db', fontSize: '14px', marginBottom: '4px' }}
@@ -204,7 +203,7 @@ function TreasurerLoans() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

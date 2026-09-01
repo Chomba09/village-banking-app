@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Navbar from '../components/Navbar'
+import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function TreasurerDashboard() {
@@ -26,10 +26,10 @@ function TreasurerDashboard() {
   if (loading) return <div className="loading">Loading dashboard...</div>
   if (error) return <div className="alert alert-error">{error}</div>
 
+ 
   return (
-    <div className="dashboard-container">
-      <Navbar />
-      <div className="dashboard-content">
+    <DashboardLayout title="Treasurer Dashboard">
+      <div>
         <h1 className="dashboard-title">Treasurer Dashboard</h1>
         <p className="dashboard-subtitle">
           Welcome back, {dashboardData.treasurer}. Here is your group overview.
@@ -43,47 +43,58 @@ function TreasurerDashboard() {
         </div>
 
         {dashboardData.groups.map((group) => (
-          <div key={group.group_id} className="table-card" style={{ marginBottom: '32px' }}>
+          <div
+            key={group.group_id}
+            className="table-card"
+            style={{ marginBottom: '32px', cursor: 'pointer' }}
+            onClick={() => localStorage.setItem('active_group_id', group.group_id)}
+          >
             <div className="table-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{group.group_name}</span>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  className="btn btn-primary"
-                  style={{ width: 'auto', padding: '8px 16px', fontSize: '13px', marginTop: '0' }}
-                  onClick={() => navigate(`/treasurer/groups/${group.group_id}/contributions`)}
-                >
-                  Contributions
-                </button>
-                <button
-                  className="btn btn-primary"
-                  style={{ width: 'auto', padding: '8px 16px', fontSize: '13px', marginTop: '0' }}
-                  onClick={() => navigate(`/treasurer/groups/${group.group_id}/loans`)}
-                >
-                  Loans
-                </button>
               </div>
             </div>
 
             <div className="stats-grid" style={{ padding: '16px', margin: '0' }}>
+              <div
+                className="stat-card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/treasurer/groups/${group.group_id}/contributions`)}
+              >
+                <div className="stat-card-title">Total Contributions</div>
+                <div className="stat-card-value">K{Number(group.total_contributions).toFixed(2)}</div>
+                <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '6px' }}>Click to view →</div>
+              </div>
+              <div
+                className="stat-card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/treasurer/groups/${group.group_id}/loans`)}
+              >
+                <div className="stat-card-title">Loans Issued</div>
+                <div className="stat-card-value">K{Number(group.total_loans_issued).toFixed(2)}</div>
+                <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '6px' }}>Click to view →</div>
+              </div>
+              <div
+                className="stat-card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/treasurer/groups/${group.group_id}/loans`)}
+              >
+                <div className="stat-card-title">Outstanding Balance</div>
+                <div className="stat-card-value">K{Number(group.outstanding_balance).toFixed(2)}</div>
+                <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '6px' }}>Click to view →</div>
+              </div>
+              <div
+                className="stat-card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => navigate(`/treasurer/groups/${group.group_id}/loans`)}
+              >
+                <div className="stat-card-title">Pending Loan Requests</div>
+                <div className="stat-card-value">{group.pending_loan_applications}</div>
+                <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '6px' }}>Click to view →</div>
+              </div>
               <div className="stat-card">
                 <div className="stat-card-title">Members</div>
                 <div className="stat-card-value">{group.members_count}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-title">Total Contributions</div>
-                <div className="stat-card-value">K{Number(group.total_contributions).toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-title">Loans Issued</div>
-                <div className="stat-card-value">K{Number(group.total_loans_issued).toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-title">Outstanding Balance</div>
-                <div className="stat-card-value">K{Number(group.outstanding_balance).toFixed(2)}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-title">Pending Loan Applications</div>
-                <div className="stat-card-value">{group.pending_loan_applications}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-card-title">Total Repaid</div>
@@ -103,7 +114,7 @@ function TreasurerDashboard() {
           </button>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 
