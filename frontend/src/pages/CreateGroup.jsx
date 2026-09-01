@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import Navbar from '../components/Navbar'
+import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function CreateGroup() {
@@ -35,9 +35,8 @@ function CreateGroup() {
   }
 
   return (
-    <div className="dashboard-container">
-      <Navbar />
-      <div className="dashboard-content">
+    <DashboardLayout title="Create New Group">
+      <div>
         <h1 className="dashboard-title">Create a New Group</h1>
         <p className="dashboard-subtitle">Fill in the details below to create a savings group.</p>
 
@@ -128,7 +127,7 @@ function CreateGroup() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

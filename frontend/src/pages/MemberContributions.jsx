@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import Navbar from '../components/Navbar'
+import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function MemberContributions() {
@@ -67,9 +67,8 @@ function MemberContributions() {
   if (loading) return <div className="loading">Loading contributions...</div>
 
   return (
-    <div className="dashboard-container">
-      <Navbar />
-      <div className="dashboard-content">
+    <DashboardLayout title="My Contributions">
+      <div>
         <button
           onClick={() => navigate('/member/dashboard')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a56db', fontSize: '14px', marginBottom: '4px' }}
@@ -160,7 +159,7 @@ function MemberContributions() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

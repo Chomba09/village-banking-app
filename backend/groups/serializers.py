@@ -26,9 +26,9 @@ class GroupSerializer(serializers.ModelSerializer):
             'invite_link', 'members', 'created_at'
         ]
 
+
     def get_invite_link(self, obj):
-        request = self.context.get('request')
-        return f"{request.scheme}://{request.get_host()}/api/groups/join/{obj.invite_token}/"
+        return f"http://localhost:5173/join/{obj.invite_token}/"
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
