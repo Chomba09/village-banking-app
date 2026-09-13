@@ -46,12 +46,9 @@ function TreasurerContributions() {
     <DashboardLayout title="Contributions">
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-          <button
-            onClick={() => navigate('/treasurer/dashboard')}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a56db', fontSize: '14px' }}
-          >
-            ← Back to Dashboard
-          </button>
+          <button className="back-btn" onClick={() => navigate(`/treasurer/groups/${groupId}`)}>
+          ← Back to Group
+        </button>
         </div>
 
         <h1 className="dashboard-title">Contributions</h1>

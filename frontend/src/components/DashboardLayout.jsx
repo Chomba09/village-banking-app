@@ -4,9 +4,16 @@ import TopBar from './TopBar'
 import ProfileDrawer from './ProfileDrawer'
 
 function DashboardLayout({ children, title }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar_collapsed')
+    return saved === 'true' ? true : false
+  })
   const [profileOpen, setProfileOpen] = useState(false)
   const sidebarRef = useRef(null)
+
+  useEffect(() => {
+    localStorage.setItem('sidebar_collapsed', collapsed)
+  }, [collapsed])
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -22,18 +29,19 @@ function DashboardLayout({ children, title }) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [collapsed])
 
+  const handleToggle = () => {
+    setCollapsed(prev => !prev)
+  }
+
   return (
     <div className="dashboard-layout">
       <div ref={sidebarRef}>
-        <Sidebar
-          collapsed={collapsed}
-          onToggle={() => setCollapsed(!collapsed)}
-        />
+        <Sidebar collapsed={collapsed} />
       </div>
 
       <TopBar
         collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
+        onToggle={handleToggle}
         title={title}
         onProfileOpen={() => setProfileOpen(true)}
       />

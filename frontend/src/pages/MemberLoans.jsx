@@ -99,11 +99,8 @@ function MemberLoans() {
   return (
     <DashboardLayout title="My Loans">
       <div>
-        <button
-          onClick={() => navigate('/member/dashboard')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a56db', fontSize: '14px', marginBottom: '4px' }}
-        >
-          ← Back to Dashboard
+        <button className="back-btn" onClick={() => navigate(`/member/groups/${groupId}`)}>
+          ← Back to Group
         </button>
 
         <h1 className="dashboard-title">My Loans</h1>

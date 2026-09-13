@@ -31,6 +31,13 @@ function Sidebar({ collapsed, onToggle }) {
     path: '/treasurer/groups/create'
   },
   {
+  icon: <Users size={18} />,
+  label: 'Members',
+  path: localStorage.getItem('active_group_id')
+    ? `/treasurer/groups/${localStorage.getItem('active_group_id')}/members`
+    : '/treasurer/dashboard'
+  },
+  {
     icon: <ArrowDownUp size={18} />,
     label: 'Withdrawals',
     path: '/treasurer/withdrawals'
@@ -64,14 +71,14 @@ const memberLinks = [
     path: '/member/apply-loan'
   },
   {
+  icon: <FileText size={18} />,
+  label: 'Notices',
+  path: '/member/notices'
+  },
+  {
     icon: <CreditCard size={18} />,
     label: 'Deposit / Withdraw',
     path: '/member/deposit'
-  },
-  {
-    icon: <Bell size={18} />,
-    label: 'Notifications',
-    path: '/member/notifications'
   },
   {
     icon: <ClipboardList size={18} />,

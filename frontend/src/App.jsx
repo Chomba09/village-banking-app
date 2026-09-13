@@ -16,6 +16,12 @@ import ProtectedRoute from './components/ProtectedRoute'
 import JoinGroup from './pages/JoinGroup'
 import MemberMakeContribution from './pages/MemberMakeContribution'
 import MemberApplyLoan from './pages/MemberApplyLoan'
+import TreasurerGroupDetail from './pages/TreasurerGroupDetail'
+import TreasurerGroupMembers from './pages/TreasurerGroupMembers'
+import TreasurerNotices from './pages/TreasurerNotices'
+import MemberNotices from './pages/MemberNotices'
+import NewCycle from './pages/NewCycle'
+import MemberGroupDetail from './pages/MemberGroupDetail'
 import './styles/main.css'
 
 function App() {
@@ -31,6 +37,15 @@ function App() {
         } />
         <Route path="/member/apply-loan" element={
           <ProtectedRoute allowedRole="member"><MemberApplyLoan /></ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/:groupId" element={
+          <ProtectedRoute allowedRole="treasurer"><TreasurerGroupDetail /></ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/:groupId/members" element={
+          <ProtectedRoute allowedRole="treasurer"><TreasurerGroupMembers /></ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/:groupId/new-cycle" element={
+          <ProtectedRoute allowedRole="treasurer"><NewCycle /></ProtectedRoute>
         } />
 
         {/* Treasurer routes */}
@@ -55,6 +70,9 @@ function App() {
         <Route path="/treasurer/transactions" element={
           <ProtectedRoute allowedRole="treasurer"><TransactionHistory /></ProtectedRoute>
         } />
+        <Route path="/treasurer/groups/:groupId/notices" element={
+          <ProtectedRoute allowedRole="treasurer"><TreasurerNotices /></ProtectedRoute>
+        } />
 
         {/* Member routes */}
         <Route path="/member/dashboard" element={
@@ -74,6 +92,12 @@ function App() {
         } />
         <Route path="/member/transactions" element={
           <ProtectedRoute allowedRole="member"><TransactionHistory /></ProtectedRoute>
+        } />
+        <Route path="/member/notices" element={
+          <ProtectedRoute allowedRole="member"><MemberNotices /></ProtectedRoute>
+        } />
+        <Route path="/member/groups/:groupId" element={
+          <ProtectedRoute allowedRole="member"><MemberGroupDetail /></ProtectedRoute>
         } />
       </Routes>
     </BrowserRouter>
