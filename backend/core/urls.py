@@ -10,4 +10,5 @@ urlpatterns = [
     path('api/dashboard/', include('dashboard.urls')),
     path('api/transactions/', include('transactions.urls')),
     path('api/notifications/', include('notifications.urls')),
+    path('api/notices/', include('notices.urls')),
 ]

@@ -80,12 +80,9 @@ function TreasurerLoans() {
   return (
     <DashboardLayout title="Loans Management">
       <div>
-        <button
-          onClick={() => navigate('/treasurer/dashboard')}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a56db', fontSize: '14px', marginBottom: '4px' }}
-        >
-          ← Back to Dashboard
-        </button>
+        <button className="back-btn" onClick={() => navigate(`/treasurer/groups/${groupId}`)}>
+        ← Back to Group
+      </button>
 
         <h1 className="dashboard-title">Loans Management</h1>
         <p className="dashboard-subtitle">Review loan applications and manage approvals.</p>
