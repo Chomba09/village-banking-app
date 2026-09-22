@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell, Info, Users } from 'lucide-react'
+import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell, Info, Users, FileText } from 'lucide-react'
 
 function MemberGroupDetail() {
   const { groupId } = useParams()
@@ -55,6 +55,15 @@ function MemberGroupDetail() {
       {group.description && (
         <p className="dashboard-subtitle">{group.description}</p>
       )}
+
+      <button
+        className="btn btn-ghost btn-sm"
+        onClick={() => navigate(`/member/groups/${groupId}/cycle-report`)}
+        style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px' }}
+      >
+        <FileText size={14} />
+        View Cycle Report
+      </button>
 
       {/* Cycle Info */}
       {cycle && (

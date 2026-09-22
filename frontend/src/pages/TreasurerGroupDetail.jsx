@@ -4,7 +4,7 @@ import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 import {
   Users, PiggyBank, HandCoins, AlertCircle,
-  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X, Trash2
+  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X, Trash2, FileText
 } from 'lucide-react'
 
 function TreasurerGroupDetail() {
@@ -187,6 +187,14 @@ function TreasurerGroupDetail() {
           >
             <RefreshCw size={14} />
             New Cycle
+          </button>
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => navigate(`/treasurer/groups/${groupId}/cycle-report`)}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <FileText size={14} />
+            Cycle Report
           </button>
           <button
             className="btn btn-sm"

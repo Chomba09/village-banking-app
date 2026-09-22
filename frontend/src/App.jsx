@@ -24,6 +24,7 @@ import TermsAndPrivacy from './pages/TermsAndPrivacy'
 import TreasurerMakeContribution from './pages/TreasurerMakeContribution'
 import TreasurerApplyLoan from './pages/TreasurerApplyLoan'
 import GroupActivity from './pages/GroupActivity'
+import CycleReport from './pages/CycleReport'
 import './styles/main.css'
 
 function App() {
@@ -57,6 +58,16 @@ function App() {
         <Route path="/member/groups/:groupId/activity" element={
           <ProtectedRoute allowedRole="member">
             <GroupActivity />
+          </ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/:groupId/cycle-report" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <CycleReport />
+          </ProtectedRoute>
+        } />
+        <Route path="/member/groups/:groupId/cycle-report" element={
+          <ProtectedRoute allowedRole="member">
+            <CycleReport />
           </ProtectedRoute>
         } />
 
