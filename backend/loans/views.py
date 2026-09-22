@@ -107,3 +107,15 @@ class LoanDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         return Loan.objects.filter(member=self.request.user)
+
+class GroupLoanActivityView(generics.ListAPIView):
+    serializer_class = LoanSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        group_id = self.kwargs['group_id']
+        return Loan.objects.filter(
+            group__id=group_id,
+            group__memberships__user=self.request.user,
+            group__memberships__status='active'
+        ).distinct().order_by('-applied_at')

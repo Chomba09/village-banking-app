@@ -46,7 +46,7 @@ function Register() {
             <line x1="10" y1="14" x2="14" y2="14"/>
             </svg>
           </div>
-          <span className="auth-left-brand-name">Village Banking</span>
+          <span className="auth-left-brand-name">Smart Banking</span>
         </div>
         <div className="auth-left-content">
           <h1 className="auth-left-tagline">
@@ -58,7 +58,7 @@ function Register() {
           </p>
         </div>
         <div className="auth-left-footer">
-          © 2026 Village Banking. All rights reserved.
+          © 2026 Smart Banking. All rights reserved.
         </div>
       </div>
 
@@ -127,6 +127,20 @@ function Register() {
             >
               {loading ? 'Creating account...' : 'Create Account →'}
             </button>
+            <p style={{
+              textAlign: 'center',
+              marginTop: '14px',
+              fontSize: '12px',
+              color: 'var(--text-muted)'
+            }}>
+              By registering you agree to our{' '}
+              <span
+                style={{ color: 'var(--accent-primary)', cursor: 'pointer', fontWeight: '600' }}
+                onClick={() => navigate('/terms')}
+              >
+                Terms & Privacy Policy
+              </span>
+            </p>
           </form>
 
           <p className="auth-link">

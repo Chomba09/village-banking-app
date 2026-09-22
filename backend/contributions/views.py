@@ -79,3 +79,15 @@ class ContributionStatusUpdateView(generics.UpdateAPIView):
                 contribution.member,
                 f'Your contribution of K{contribution.amount} to {contribution.group.name} has been rejected.'
             )
+
+class GroupActivityView(generics.ListAPIView):
+    serializer_class = ContributionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        group_id = self.kwargs['group_id']
+        return Contribution.objects.filter(
+            group__id=group_id,
+            group__memberships__user=self.request.user,
+            group__memberships__status='active'
+        ).distinct().order_by('-created_at')

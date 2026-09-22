@@ -2,11 +2,9 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
   PlusCircle,
-  ArrowDownUp,
   Bell,
   ClipboardList,
   LogOut,
-  CreditCard,
   PiggyBank,
   HandCoins,
   Users,
@@ -26,31 +24,24 @@ function Sidebar({ collapsed, onToggle }) {
     path: '/treasurer/dashboard'
   },
   {
+  icon: <PiggyBank size={18} />,
+  label: 'Make Contribution',
+  path: '/treasurer/contribute'
+  },
+  {
+    icon: <HandCoins size={18} />,
+    label: 'Apply for Loan',
+    path: '/treasurer/apply-loan'
+  },
+  {
     icon: <PlusCircle size={18} />,
     label: 'Create Group',
     path: '/treasurer/groups/create'
   },
   {
-  icon: <Users size={18} />,
-  label: 'Members',
-  path: localStorage.getItem('active_group_id')
-    ? `/treasurer/groups/${localStorage.getItem('active_group_id')}/members`
-    : '/treasurer/dashboard'
-  },
-  {
-    icon: <ArrowDownUp size={18} />,
-    label: 'Withdrawals',
-    path: '/treasurer/withdrawals'
-  },
-  {
     icon: <Bell size={18} />,
     label: 'Notifications',
     path: '/treasurer/notifications'
-  },
-  {
-    icon: <ClipboardList size={18} />,
-    label: 'Transactions',
-    path: '/treasurer/transactions'
   },
 ]
 
@@ -74,11 +65,6 @@ const memberLinks = [
   icon: <FileText size={18} />,
   label: 'Notices',
   path: '/member/notices'
-  },
-  {
-    icon: <CreditCard size={18} />,
-    label: 'Deposit / Withdraw',
-    path: '/member/deposit'
   },
   {
     icon: <ClipboardList size={18} />,

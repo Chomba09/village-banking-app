@@ -5,11 +5,9 @@ import TreasurerDashboard from './pages/TreasurerDashboard'
 import CreateGroup from './pages/CreateGroup'
 import TreasurerContributions from './pages/TreasurerContributions'
 import TreasurerLoans from './pages/TreasurerLoans'
-import TreasurerWithdrawals from './pages/TreasurerWithdrawals'
 import MemberDashboard from './pages/MemberDashboard'
 import MemberContributions from './pages/MemberContributions'
 import MemberLoans from './pages/MemberLoans'
-import MemberDeposit from './pages/MemberDeposit'
 import Notifications from './pages/Notifications'
 import TransactionHistory from './pages/TransactionHistory'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -22,6 +20,10 @@ import TreasurerNotices from './pages/TreasurerNotices'
 import MemberNotices from './pages/MemberNotices'
 import NewCycle from './pages/NewCycle'
 import MemberGroupDetail from './pages/MemberGroupDetail'
+import TermsAndPrivacy from './pages/TermsAndPrivacy'
+import TreasurerMakeContribution from './pages/TreasurerMakeContribution'
+import TreasurerApplyLoan from './pages/TreasurerApplyLoan'
+import GroupActivity from './pages/GroupActivity'
 import './styles/main.css'
 
 function App() {
@@ -47,6 +49,16 @@ function App() {
         <Route path="/treasurer/groups/:groupId/new-cycle" element={
           <ProtectedRoute allowedRole="treasurer"><NewCycle /></ProtectedRoute>
         } />
+        <Route path="/treasurer/groups/:groupId/activity" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <GroupActivity />
+          </ProtectedRoute>
+        } />
+        <Route path="/member/groups/:groupId/activity" element={
+          <ProtectedRoute allowedRole="member">
+            <GroupActivity />
+          </ProtectedRoute>
+        } />
 
         {/* Treasurer routes */}
         <Route path="/treasurer/dashboard" element={
@@ -61,9 +73,6 @@ function App() {
         <Route path="/treasurer/groups/:groupId/loans" element={
           <ProtectedRoute allowedRole="treasurer"><TreasurerLoans /></ProtectedRoute>
         } />
-        <Route path="/treasurer/withdrawals" element={
-          <ProtectedRoute allowedRole="treasurer"><TreasurerWithdrawals /></ProtectedRoute>
-        } />
         <Route path="/treasurer/notifications" element={
           <ProtectedRoute allowedRole="treasurer"><Notifications /></ProtectedRoute>
         } />
@@ -72,6 +81,16 @@ function App() {
         } />
         <Route path="/treasurer/groups/:groupId/notices" element={
           <ProtectedRoute allowedRole="treasurer"><TreasurerNotices /></ProtectedRoute>
+        } />
+        <Route path="/treasurer/contribute" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <TreasurerMakeContribution />
+          </ProtectedRoute>
+        } />
+        <Route path="/treasurer/apply-loan" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <TreasurerApplyLoan />
+          </ProtectedRoute>
         } />
 
         {/* Member routes */}
@@ -83,9 +102,6 @@ function App() {
         } />
         <Route path="/member/loans/:groupId" element={
           <ProtectedRoute allowedRole="member"><MemberLoans /></ProtectedRoute>
-        } />
-        <Route path="/member/deposit" element={
-          <ProtectedRoute allowedRole="member"><MemberDeposit /></ProtectedRoute>
         } />
         <Route path="/member/notifications" element={
           <ProtectedRoute allowedRole="member"><Notifications /></ProtectedRoute>
@@ -99,6 +115,8 @@ function App() {
         <Route path="/member/groups/:groupId" element={
           <ProtectedRoute allowedRole="member"><MemberGroupDetail /></ProtectedRoute>
         } />
+        <Route path="/terms" element={<TermsAndPrivacy />} />
+        <Route path="/terms" element={<TermsAndPrivacy />} />
       </Routes>
     </BrowserRouter>
   )

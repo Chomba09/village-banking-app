@@ -23,6 +23,7 @@ class Contribution(models.Model):
     note = models.TextField(blank=True, null=True)
     date = models.DateField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    submitted_by_treasurer = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.member.username} - {self.amount} ({self.group.name})"

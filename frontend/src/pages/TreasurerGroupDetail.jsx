@@ -4,12 +4,13 @@ import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 import {
   Users, PiggyBank, HandCoins, AlertCircle,
-  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X
+  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X, Trash2
 } from 'lucide-react'
 
 function TreasurerGroupDetail() {
   const { groupId } = useParams()
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')
   const [group, setGroup] = useState(null)
   const [dashboard, setDashboard] = useState(null)
   const [notices, setNotices] = useState([])
@@ -21,6 +22,9 @@ function TreasurerGroupDetail() {
   const [postingNotice, setPostingNotice] = useState(false)
   const [noticeSuccess, setNoticeSuccess] = useState('')
   const [noticeError, setNoticeError] = useState('')
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  
 
   useEffect(() => {
     fetchData()
@@ -51,6 +55,18 @@ function TreasurerGroupDetail() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
   }
+
+  const handleArchive = async () => {
+  setArchiving(true)
+  try {
+    await api.post(`/groups/${groupId}/archive/`)
+    navigate('/treasurer/dashboard')
+  } catch (err) {
+    alert('Failed to archive group.')
+  } finally {
+    setArchiving(false)
+  }
+}
 
   const handleNoticeChange = (e) => {
     setNoticeForm({ ...noticeForm, [e.target.name]: e.target.value })
@@ -90,6 +106,64 @@ function TreasurerGroupDetail() {
         ← Back to Dashboard
       </button>
 
+      {showArchiveConfirm && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 500,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '32px',
+            maxWidth: '420px',
+            width: '100%',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <h3 style={{
+              fontSize: '17px',
+              fontWeight: '700',
+              color: 'var(--text-primary)',
+              marginBottom: '10px'
+            }}>
+              Archive Group
+            </h3>
+            <p style={{
+              fontSize: '14px',
+              color: 'var(--text-secondary)',
+              marginBottom: '24px',
+              lineHeight: '1.6'
+            }}>
+              Are you sure you want to archive <strong>{group?.name}</strong>?
+              All members will be notified that the group has been closed.
+              All financial records will be preserved for future reference.
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+                disabled={archiving}
+                onClick={handleArchive}
+              >
+                {archiving ? 'Archiving...' : 'Yes, Archive Group'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                style={{ flex: 1 }}
+                onClick={() => setShowArchiveConfirm(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <div>
           <h1 className="dashboard-title">{group.name}</h1>
@@ -113,6 +187,21 @@ function TreasurerGroupDetail() {
           >
             <RefreshCw size={14} />
             New Cycle
+          </button>
+          <button
+            className="btn btn-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'var(--crimson-100)',
+              color: 'var(--crimson-500)',
+              border: 'none'
+            }}
+            onClick={() => setShowArchiveConfirm(true)}
+          >
+            <Trash2 size={14} />
+            Archive Group
           </button>
         </div>
       </div>
@@ -166,7 +255,7 @@ function TreasurerGroupDetail() {
           <div
             className="stat-card"
             style={{ cursor: 'pointer', borderLeft: '3px solid var(--accent-secondary)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans`)}
+            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=approved`)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <HandCoins size={16} color="var(--accent-secondary)" />
@@ -181,7 +270,7 @@ function TreasurerGroupDetail() {
           <div
             className="stat-card"
             style={{ cursor: 'pointer', borderLeft: '3px solid var(--crimson-500)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans`)}
+            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=outstanding`)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <AlertCircle size={16} color="var(--crimson-500)" />
@@ -196,7 +285,7 @@ function TreasurerGroupDetail() {
           <div
             className="stat-card"
             style={{ cursor: 'pointer', borderLeft: '3px solid var(--yellow-500)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans`)}
+            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=pending`)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <Clock size={16} color="var(--yellow-700)" />
@@ -211,7 +300,7 @@ function TreasurerGroupDetail() {
           <div
             className="stat-card"
             style={{ cursor: 'pointer', borderLeft: '3px solid #4a8c55' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans`)}
+            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=repaid`)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <CheckCircle2 size={16} color="#4a8c55" />
@@ -236,6 +325,26 @@ function TreasurerGroupDetail() {
               {dashboard.members_count}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>View members →</div>
+          </div>
+          <div
+            className="stat-card"
+            style={{ cursor: 'pointer', borderLeft: '3px solid var(--purple-600)' }}
+            onClick={() => navigate(
+              role === 'treasurer'
+                ? `/treasurer/groups/${groupId}/activity`
+                : `/member/groups/${groupId}/activity`
+            )}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Users size={16} color="var(--purple-600)" />
+              <div className="stat-card-title" style={{ margin: 0 }}>Group Activity</div>
+            </div>
+            <div className="stat-card-value" style={{ fontSize: '14px', color: 'var(--purple-600)' }}>
+              View all
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>
+              Contributions & loans →
+            </div>
           </div>
         </div>
       )}

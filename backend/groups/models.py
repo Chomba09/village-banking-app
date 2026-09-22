@@ -13,6 +13,8 @@ class Group(models.Model):
     )
     invite_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(blank=True, null=True)
 
     # Contact
     contact_person = models.CharField(max_length=15, blank=True, null=True)
@@ -53,6 +55,11 @@ class Cycle(models.Model):
     stop_saving_date = models.DateField()
     stop_borrowing_date = models.DateField()
     member_admission_deadline = models.DateField()
+    max_loan_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=80.00
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

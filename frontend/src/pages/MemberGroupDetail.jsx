@@ -2,37 +2,41 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell } from 'lucide-react'
+import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell, Info, Users } from 'lucide-react'
 
 function MemberGroupDetail() {
   const { groupId } = useParams()
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')
   const [group, setGroup] = useState(null)
   const [memberData, setMemberData] = useState(null)
   const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [availability, setAvailability] = useState(null)
 
   useEffect(() => {
     const fetchData = async () => {
-      try {
-        const [groupRes, dashRes, noticesRes] = await Promise.all([
-          api.get(`/groups/${groupId}/`),
-          api.get('/dashboard/member/'),
-          api.get(`/notices/group/${groupId}/`)
-        ])
-        setGroup(groupRes.data)
-        const groupData = dashRes.data.groups.find(
-          g => String(g.group_id) === String(groupId)
-        )
-        setMemberData(groupData)
-        setNotices(noticesRes.data)
-      } catch (err) {
-        setError('Failed to load group details.')
-      } finally {
-        setLoading(false)
-      }
-    }
+  try {
+    const [groupRes, dashRes, noticesRes, availabilityRes] = await Promise.all([
+      api.get(`/groups/${groupId}/`),
+      api.get('/dashboard/member/'),
+      api.get(`/notices/group/${groupId}/`),
+      api.get(`/groups/${groupId}/loan-availability/`).catch(() => null)
+    ])
+    setGroup(groupRes.data)
+    const groupData = dashRes.data.groups.find(
+      g => String(g.group_id) === String(groupId)
+    )
+    setMemberData(groupData)
+    setNotices(noticesRes.data)
+    if (availabilityRes) setAvailability(availabilityRes.data)
+  } catch (err) {
+    setError('Failed to load group details.')
+  } finally {
+    setLoading(false)
+  }
+}
     fetchData()
   }, [groupId])
 
@@ -168,8 +172,90 @@ function MemberGroupDetail() {
               View loans →
             </div>
           </div>
+          <div
+            className="stat-card"
+            style={{ cursor: 'pointer', borderLeft: '3px solid var(--purple-600)' }}
+            onClick={() => navigate(
+              role === 'treasurer'
+                ? `/treasurer/groups/${groupId}/activity`
+                : `/member/groups/${groupId}/activity`
+            )}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Users size={16} color="var(--purple-600)" />
+              <div className="stat-card-title" style={{ margin: 0 }}>Group Activity</div>
+            </div>
+            <div className="stat-card-value" style={{ fontSize: '14px', color: 'var(--purple-600)' }}>
+              View all
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>
+              Contributions & loans →
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Loan Availability */}
+        {availability && (
+          <div className="table-card" style={{ marginBottom: '24px' }}>
+            <div className="table-card-header" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Info size={16} color="var(--accent-primary)" />
+              <span>Loan Availability</span>
+            </div>
+            <div style={{
+              padding: '16px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+              gap: '16px'
+            }}>
+              {[
+                {
+                  label: 'Total Savings',
+                  value: `K${Number(availability.total_savings).toFixed(2)}`
+                },
+                {
+                  label: 'Max Loan %',
+                  value: `${availability.max_loan_percentage}%`
+                },
+                {
+                  label: 'Outstanding Loans',
+                  value: `K${Number(availability.outstanding_loans).toFixed(2)}`
+                },
+                {
+                  label: 'Available to Borrow',
+                  value: `K${Number(availability.available_amount).toFixed(2)}`,
+                  highlight: true
+                },
+              ].map(item => (
+                <div key={item.label}>
+                  <div style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: 'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.4px',
+                    marginBottom: '4px'
+                  }}>
+                    {item.label}
+                  </div>
+                  <div style={{
+                    fontSize: '16px',
+                    fontWeight: '700',
+                    color: item.highlight
+                      ? 'var(--accent-primary)'
+                      : 'var(--text-primary)'
+                  }}>
+                    {item.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       {/* Penalties */}
       <div className="table-card" style={{ marginBottom: '24px' }}>

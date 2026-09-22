@@ -11,7 +11,7 @@ class CycleSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'cycle_name', 'start_date', 'end_date',
             'stop_saving_date', 'stop_borrowing_date',
-            'member_admission_deadline', 'is_active', 'created_at'
+            'member_admission_deadline', 'max_loan_percentage', 'is_active', 'created_at'
         ]
         read_only_fields = ['is_active', 'created_at']
 
@@ -61,6 +61,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     stop_saving_date = serializers.DateField(write_only=True)
     stop_borrowing_date = serializers.DateField(write_only=True)
     member_admission_deadline = serializers.DateField(write_only=True)
+    max_loan_percentage = serializers.DecimalField( max_digits=5, decimal_places=2, write_only=True, default=80.00)
     invite_link = serializers.SerializerMethodField()
     active_cycle = CycleSerializer(read_only=True)
 
@@ -75,7 +76,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             'default_loan_penalty',
             'cycle_name', 'start_date', 'end_date',
             'stop_saving_date', 'stop_borrowing_date',
-            'member_admission_deadline',
+            'member_admission_deadline', 'max_loan_percentage',
             'invite_link', 'active_cycle'
         ]
 
@@ -105,6 +106,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
             'stop_saving_date': validated_data.pop('stop_saving_date'),
             'stop_borrowing_date': validated_data.pop('stop_borrowing_date'),
             'member_admission_deadline': validated_data.pop('member_admission_deadline'),
+            'max_loan_percentage': validated_data.pop('max_loan_percentage', 80.00),
         }
         user = self.context['request'].user
         group = Group.objects.create(treasurer=user, **validated_data)
@@ -119,7 +121,7 @@ class NewCycleSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'cycle_name', 'start_date', 'end_date',
             'stop_saving_date', 'stop_borrowing_date',
-            'member_admission_deadline'
+            'member_admission_deadline', 'max_loan_percentage'
         ]
 
     def validate(self, data):

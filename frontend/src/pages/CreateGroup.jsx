@@ -29,6 +29,7 @@ function CreateGroup() {
     stop_saving_date: '',
     stop_borrowing_date: '',
     member_admission_deadline: '',
+    max_loan_percentage: '80',
   })
 
   const handleChange = (e) => {
@@ -172,7 +173,7 @@ function CreateGroup() {
                 name="name"
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="e.g. Munali Savings Group"
+                placeholder="e.g. Blessings Chilimba Group"
                 required
               />
             </div>
@@ -190,7 +191,7 @@ function CreateGroup() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label>Contact Person (Phone) *</label>
+                <label>Contact Person (Phone No.) *</label>
                 <input
                   type="text"
                   name="contact_person"
@@ -279,6 +280,23 @@ function CreateGroup() {
                   required
                 />
               </div>
+            </div>
+            <div className="form-group">
+              <label>Maximum Loan Percentage (%) *</label>
+              <input
+                type="number"
+                name="max_loan_percentage"
+                value={formData.max_loan_percentage}
+                onChange={handleChange}
+                placeholder="e.g. 80"
+                step="1"
+                min="1"
+                max="100"
+                required
+              />
+              <small style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                Members can borrow up to this percentage of total group savings
+              </small>
             </div>
 
             <SectionTitle>Financial Settings</SectionTitle>

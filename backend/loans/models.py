@@ -27,6 +27,7 @@ class Loan(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     purpose = models.TextField(blank=True, null=True)
     applied_at = models.DateTimeField(auto_now_add=True)
+    submitted_by_treasurer = models.BooleanField(default=False)
     approved_at = models.DateTimeField(blank=True, null=True)
     due_date = models.DateField(blank=True, null=True)
 
