@@ -25,6 +25,9 @@ import TreasurerMakeContribution from './pages/TreasurerMakeContribution'
 import TreasurerApplyLoan from './pages/TreasurerApplyLoan'
 import GroupActivity from './pages/GroupActivity'
 import CycleReport from './pages/CycleReport'
+import ArchivedGroupDetail from './pages/ArchivedGroupDetail'
+import TreasurerMyContributions from './pages/TreasurerMyContributions'
+import TreasurerMyLoans from './pages/TreasurerMyLoans'
 import './styles/main.css'
 
 function App() {
@@ -70,6 +73,16 @@ function App() {
             <CycleReport />
           </ProtectedRoute>
         } />
+        <Route path="/treasurer/my-contributions" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <TreasurerMyContributions />
+          </ProtectedRoute>
+        } />
+        <Route path="/treasurer/my-loans" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <TreasurerMyLoans />
+          </ProtectedRoute>
+        } />
 
         {/* Treasurer routes */}
         <Route path="/treasurer/dashboard" element={
@@ -101,6 +114,16 @@ function App() {
         <Route path="/treasurer/apply-loan" element={
           <ProtectedRoute allowedRole="treasurer">
             <TreasurerApplyLoan />
+          </ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/archived/:groupId" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <ArchivedGroupDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/treasurer/groups/archived/:groupId/cycle-report" element={
+          <ProtectedRoute allowedRole="treasurer">
+            <CycleReport />
           </ProtectedRoute>
         } />
 

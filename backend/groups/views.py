@@ -45,7 +45,7 @@ class GroupListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Group.objects.filter(memberships__user=self.request.user)
+        return Group.objects.filter(memberships__user=self.request.user, is_archived=False)
 
 
 class JoinGroupView(APIView):
@@ -296,5 +296,15 @@ class LoanAvailabilityView(APIView):
             'outstanding_loans': outstanding_loans,
             'available_amount': available_amount,
         })
+
+class ArchivedGroupListView(generics.ListAPIView):
+    serializer_class = GroupSerializer
+    permission_classes = [permissions.IsAuthenticated, IsTreasurer]
+
+    def get_queryset(self):
+        return Group.objects.filter(
+            treasurer=self.request.user,
+            is_archived=True
+        )
 
    

@@ -34,6 +34,16 @@ function Sidebar({ collapsed, onToggle }) {
     path: '/treasurer/apply-loan'
   },
   {
+    icon: <PiggyBank size={18} />,
+    label: 'My Contributions',
+    path: '/treasurer/my-contributions'
+  },
+  {
+    icon: <HandCoins size={18} />,
+    label: 'My Loans',
+    path: '/treasurer/my-loans'
+  },
+  {
     icon: <PlusCircle size={18} />,
     label: 'Create Group',
     path: '/treasurer/groups/create'

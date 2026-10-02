@@ -8,7 +8,7 @@ class Transaction(models.Model):
         ('deposit', 'Deposit'),
         ('withdrawal', 'Withdrawal'),
         ('contribution', 'Contribution'),
-        ('loan_disbursement', 'Loan Disbursement'),
+        ('loan_disbursement', 'Loan Request'),
         ('loan_repayment', 'Loan Repayment'),
     )
 

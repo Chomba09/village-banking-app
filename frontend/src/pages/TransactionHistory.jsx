@@ -45,10 +45,8 @@ function TransactionHistory() {
           }}
         >
           <option value="">All Types</option>
-          <option value="deposit">Deposit</option>
-          <option value="withdrawal">Withdrawal</option>
           <option value="contribution">Contribution</option>
-          <option value="loan_disbursement">Loan Disbursement</option>
+          <option value="loan_disbursement">Loan Request</option>
           <option value="loan_repayment">Loan Repayment</option>
         </select>
       </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { PiggyBank, HandCoins } from 'lucide-react'
+import { PiggyBank, HandCoins, CheckCircle2 } from 'lucide-react'
 
 function GroupActivity() {
   const { groupId } = useParams()
@@ -12,24 +12,37 @@ function GroupActivity() {
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('contributions')
+  const [repayments, setRepayments] = useState([])
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [contribRes, loansRes] = await Promise.all([
-          api.get(`/contributions/group/${groupId}/activity/`),
-          api.get(`/loans/group/${groupId}/activity/`)
-        ])
-        setContributions(contribRes.data)
-        setLoans(loansRes.data)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
+  const fetchData = async () => {
+    try {
+      const [contribRes, loansRes] = await Promise.all([
+        api.get(`/contributions/group/${groupId}/activity/`),
+        api.get(`/loans/group/${groupId}/activity/`)
+      ])
+      setContributions(contribRes.data)
+      setLoans(loansRes.data)
+
+      const allRepayments = loansRes.data
+        .flatMap(loan =>
+          (loan.repayments || []).map(r => ({
+            ...r,
+            member_username: loan.member_username,
+            loan_id: loan.id,
+            submitted_by_treasurer: loan.submitted_by_treasurer
+          }))
+        )
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+      setRepayments(allRepayments)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
-    fetchData()
-  }, [groupId])
+  }
+  fetchData()
+}, [groupId])
 
   const backPath = role === 'treasurer'
     ? `/treasurer/groups/${groupId}`
@@ -107,6 +120,30 @@ function GroupActivity() {
         >
           <HandCoins size={15} />
           Loan Requests ({loans.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('repayments')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 20px',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            background: activeTab === 'repayments'
+              ? 'var(--accent-primary)'
+              : 'transparent',
+            color: activeTab === 'repayments'
+              ? 'white'
+              : 'var(--text-secondary)',
+            transition: 'var(--transition)'
+          }}
+        >
+          <CheckCircle2 size={15} />
+          Repayments ({repayments.length})
         </button>
       </div>
 
@@ -192,6 +229,51 @@ function GroupActivity() {
                     </td>
                     <td>
                       {l.submitted_by_treasurer && (
+                        <span className="badge" style={{
+                          background: 'var(--purple-100)',
+                          color: 'var(--purple-700)'
+                        }}>
+                          Treasurer
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {activeTab === 'repayments' && (
+        <div className="table-card">
+          <div className="table-card-header">
+            All Repayments — {repayments.length} records
+          </div>
+          {repayments.length === 0 ? (
+            <div className="empty-state">No repayments yet.</div>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Loan #</th>
+                  <th>Amount</th>
+                  <th>Date</th>
+                  <th>Note</th>
+                  <th>Type</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repayments.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ fontWeight: '600' }}>{r.member_username}</td>
+                    <td>#{r.loan_id}</td>
+                    <td>K{Number(r.amount).toFixed(2)}</td>
+                    <td>{r.date}</td>
+                    <td>{r.note || '—'}</td>
+                    <td>
+                      {r.submitted_by_treasurer && (
                         <span className="badge" style={{
                           background: 'var(--purple-100)',
                           color: 'var(--purple-700)'

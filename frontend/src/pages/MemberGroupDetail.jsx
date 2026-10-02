@@ -131,22 +131,6 @@ function MemberGroupDetail() {
             </div>
           </div>
 
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid #4a8c55' }}
-            onClick={() => navigate(`/member/contributions/${groupId}`)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <CheckCircle2 size={16} color="#4a8c55" />
-              <div className="stat-card-title" style={{ margin: 0 }}>Confirmed Savings</div>
-            </div>
-            <div className="stat-card-value" style={{ color: '#4a8c55' }}>
-              K{Number(memberData.my_confirmed_contributions).toFixed(2)}
-            </div>
-            <div style={{ fontSize: '11px', color: '#4a8c55', marginTop: '6px' }}>
-              View contributions →
-            </div>
-          </div>
 
           <div
             className="stat-card"

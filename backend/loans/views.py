@@ -24,8 +24,46 @@ class LoanApplyView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         loan = serializer.save()
+
+        # Auto-approve if treasurer is applying for their own group
+        if loan.submitted_by_treasurer:
+            from django.utils import timezone as tz
+            group = loan.group
+            cycle = group.active_cycle
+            loan.status = 'approved'
+            loan.interest_rate = group.interest_rate
+            loan.due_date = cycle.end_date
+            loan.approved_at = tz.now()
+            loan.save()
+
+            Transaction.objects.create(
+                member=loan.member,
+                group=loan.group,
+                transaction_type='loan_disbursement',
+                amount=loan.amount,
+                status='approved',
+                note='Treasurer loan — auto-approved'
+            )
+
+            from notifications.utils import send_notification
+            from groups.models import Membership
+            members = Membership.objects.filter(
+                group=group,
+                status='active'
+            ).exclude(user=request.user)
+
+            for membership in members:
+                send_notification(
+                    membership.user,
+                    f'The treasurer has taken a loan of K{loan.amount} '
+                    f'from {group.name}. This is visible for full transparency.'
+                )
+
         response_serializer = LoanSerializer(loan)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
 
 
 class MemberLoanListView(generics.ListAPIView):

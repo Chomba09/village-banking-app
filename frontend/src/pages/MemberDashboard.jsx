@@ -126,25 +126,6 @@ function MemberDashboard() {
                   letterSpacing: '0.4px',
                   marginBottom: '4px'
                 }}>
-                  Confirmed Savings
-                </div>
-                <div style={{
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: '#4a8c55'
-                }}>
-                  K{Number(group.my_confirmed_contributions).toFixed(2)}
-                </div>
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '11px',
-                  color: 'var(--text-muted)',
-                  fontWeight: '600',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.4px',
-                  marginBottom: '4px'
-                }}>
                   Outstanding Loans
                 </div>
                 <div style={{

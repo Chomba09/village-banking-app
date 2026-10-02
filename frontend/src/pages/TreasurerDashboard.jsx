@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
+import { Archive } from 'lucide-react'
 import api from '../api/axios'
 
 function TreasurerDashboard() {
@@ -8,20 +9,25 @@ function TreasurerDashboard() {
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [archivedGroups, setArchivedGroups] = useState([])
 
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await api.get('/dashboard/treasurer/')
-        setDashboardData(response.data)
-      } catch (err) {
-        setError('Failed to load dashboard data.')
-      } finally {
-        setLoading(false)
-      }
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const [dashRes, archivedRes] = await Promise.all([
+        api.get('/dashboard/treasurer/'),
+        api.get('/groups/archived/')
+      ])
+      setDashboardData(dashRes.data)
+      setArchivedGroups(archivedRes.data)
+    } catch (err) {
+      setError('Failed to load dashboard data.')
+    } finally {
+      setLoading(false)
     }
-    fetchDashboard()
-  }, [])
+  }
+  fetchData()
+}, [])
 
   if (loading) return <div className="loading">Loading dashboard...</div>
   if (error) return <div className="alert alert-error">{error}</div>
@@ -125,6 +131,85 @@ function TreasurerDashboard() {
           + Create New Group
         </button>
       </div>
+      {archivedGroups.length > 0 && (
+        <div style={{ marginTop: '40px' }}>
+          <h2 style={{
+            fontSize: '16px',
+            fontWeight: '700',
+            color: 'var(--text-muted)',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Archive size={16} />
+            Archived Groups ({archivedGroups.length})
+          </h2>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '16px'
+          }}>
+            {archivedGroups.map((group) => (
+              <div
+                key={group.id}
+                className="table-card"
+                style={{
+                  cursor: 'pointer',
+                  opacity: '0.75',
+                  transition: 'var(--transition)'
+                }}
+                onClick={() => navigate(`/treasurer/groups/archived/${group.id}`)}
+                onMouseEnter={e => {
+                  e.currentTarget.style.opacity = '1'
+                  e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.opacity = '0.75'
+                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)'
+                }}
+              >
+                <div className="table-card-header" style={{
+                  borderBottom: '2px solid var(--text-muted)'
+                }}>
+                  <span style={{ fontWeight: '700', color: 'var(--text-muted)' }}>
+                    {group.name}
+                  </span>
+                  <span style={{
+                    fontSize: '11px',
+                    background: 'var(--gray-200)',
+                    color: 'var(--gray-600)',
+                    padding: '2px 10px',
+                    borderRadius: '20px',
+                    fontWeight: '600'
+                  }}>
+                    Archived
+                  </span>
+                </div>
+                <div style={{
+                  padding: '12px 16px',
+                  fontSize: '13px',
+                  color: 'var(--text-muted)'
+                }}>
+                  {group.active_cycle
+                    ? `Cycle: ${group.active_cycle.cycle_name}`
+                    : 'No cycle data'}
+                </div>
+                <div style={{
+                  padding: '8px 16px',
+                  borderTop: '1px solid var(--border-color)',
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                  textAlign: 'right'
+                }}>
+                  Click to view records →
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
