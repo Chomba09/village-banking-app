@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Moon, Sun, Bell, Menu, X } from 'lucide-react'
+import { Moon, Sun, Bell, Menu, X, Search } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import api from '../api/axios'
 
@@ -10,6 +10,7 @@ function TopBar({ collapsed, onToggle, title, onProfileOpen }) {
   const username = localStorage.getItem('username') || 'U'
   const role = localStorage.getItem('role')
   const [unreadCount, setUnreadCount] = useState(0)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     const fetchUnread = async () => {
@@ -27,7 +28,22 @@ function TopBar({ collapsed, onToggle, title, onProfileOpen }) {
 
   const notifPath = role === 'treasurer'
     ? '/treasurer/notifications'
-    : '/member/notifications'
+    : role === 'chairperson'
+      ? '/chairperson/notifications'
+      : '/member/notifications'
+
+  const searchPath = role === 'treasurer'
+    ? '/treasurer/search'
+    : role === 'chairperson'
+      ? '/chairperson/search'
+      : '/member/search'
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      navigate(`${searchPath}?q=${encodeURIComponent(searchQuery.trim())}`)
+    }
+  }
 
   return (
     <header className="topbar" style={{
@@ -39,6 +55,35 @@ function TopBar({ collapsed, onToggle, title, onProfileOpen }) {
         </button>
         <span className="topbar-title">{title}</span>
       </div>
+
+      <form className="topbar-search" onSubmit={handleSearchSubmit} style={{
+        display: 'flex',
+        alignItems: 'center',
+        flex: 1,
+        maxWidth: '360px',
+        margin: '0 16px',
+        gap: '6px',
+        background: 'var(--bg-primary)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 'var(--radius-sm)',
+        padding: '6px 10px'
+      }}>
+        <Search size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Search members, loans, transactions..."
+          style={{
+            border: 'none',
+            outline: 'none',
+            background: 'transparent',
+            width: '100%',
+            fontSize: '13px',
+            color: 'var(--text-primary)'
+          }}
+        />
+      </form>
 
       <div className="topbar-right">
         <button

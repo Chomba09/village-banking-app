@@ -357,6 +357,55 @@ function TreasurerGroupDetail() {
         </div>
       )}
 
+      {/* My Contributions & My Loans — treasurer's own records for this group */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+        <div className="table-card" style={{ cursor: 'pointer' }}>
+          <div className="table-card-header" style={{ borderBottom: '2px solid var(--accent-primary)' }}>
+            <PiggyBank size={15} style={{ marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-primary)' }} />
+            My Contributions
+          </div>
+          <div style={{ padding: '16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              View your personal savings contributions for this group.
+            </p>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => navigate('/treasurer/my-contributions')}
+              >
+                View My Contributions
+              </button>
+              <button
+                className="btn btn-sm"
+                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}
+                onClick={() => navigate('/treasurer/contribute')}
+              >
+                Make Contribution
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="table-card" style={{ cursor: 'pointer' }}>
+          <div className="table-card-header" style={{ borderBottom: '2px solid var(--accent-secondary)' }}>
+            <HandCoins size={15} style={{ marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-secondary)' }} />
+            My Loans
+          </div>
+          <div style={{ padding: '16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
+              Track your personal loan applications and repayments for this group.
+            </p>
+            <button
+              className="btn btn-sm"
+              style={{ background: 'var(--accent-secondary)', color: 'white', border: 'none' }}
+              onClick={() => navigate('/treasurer/my-loans')}
+            >
+              View My Loans
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Penalties */}
       <div className="table-card" style={{ marginBottom: '24px' }}>
         <div className="table-card-header">Penalty Settings</div>

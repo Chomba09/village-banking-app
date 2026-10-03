@@ -14,16 +14,20 @@ function TreasurerDashboard() {
 useEffect(() => {
   const fetchData = async () => {
     try {
-      const [dashRes, archivedRes] = await Promise.all([
-        api.get('/dashboard/treasurer/'),
-        api.get('/groups/archived/')
-      ])
+      const dashRes = await api.get('/dashboard/treasurer/')
       setDashboardData(dashRes.data)
-      setArchivedGroups(archivedRes.data)
     } catch (err) {
       setError('Failed to load dashboard data.')
-    } finally {
       setLoading(false)
+      return
+    }
+    setLoading(false)
+    // Archived groups load separately so a 404 never breaks the main dashboard
+    try {
+      const archivedRes = await api.get('/groups/archived/')
+      setArchivedGroups(archivedRes.data)
+    } catch (err) {
+      setArchivedGroups([])
     }
   }
   fetchData()

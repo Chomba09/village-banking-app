@@ -87,6 +87,21 @@ function TreasurerGroupMembers() {
     }
   }
 
+  const handleMakeChairperson = async (membershipId) => {
+    setUpdating(membershipId)
+    try {
+      const response = await api.patch(`/groups/${groupId}/set-chairperson/`, {
+        membership_id: membershipId
+      })
+      alert(response.data.message)
+      await fetchData()
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to appoint chairperson.')
+    } finally {
+      setUpdating(null)
+    }
+  }
+
   if (loading) return <div className="loading">Loading members...</div>
 
   const activeMembers = members.filter(m => m.status === 'active')
@@ -192,6 +207,7 @@ function TreasurerGroupMembers() {
           <table>
             <thead>
               <tr>
+                <th>Member ID</th>
                 <th>Name</th>
                 <th>Username</th>
                 <th>Email</th>
@@ -203,10 +219,17 @@ function TreasurerGroupMembers() {
             <tbody>
               {activeMembers.map((member) => (
                 <tr key={member.id}>
+                  <td style={{ fontFamily: 'monospace', fontSize: '13px' }}>{member.member_id}</td>
                   <td style={{ fontWeight: '600' }}>
                     {member.first_name || member.last_name
                       ? `${member.first_name} ${member.last_name}`.trim()
                       : '—'}
+                    {member.is_treasurer && (
+                      <span className="badge badge-treasurer" style={{ marginLeft: '6px' }}>Treasurer</span>
+                    )}
+                    {member.is_chairperson && (
+                      <span className="badge badge-chairperson" style={{ marginLeft: '6px' }}>Chairperson</span>
+                    )}
                   </td>
                   <td>{member.username}</td>
                   <td>
@@ -225,23 +248,35 @@ function TreasurerGroupMembers() {
                     {new Date(member.date_joined).toLocaleDateString()}
                   </td>
                   <td>
-                    {member.role !== 'treasurer' && (
-                      <button
-                        className="btn btn-sm"
-                        style={{
-                          background: 'var(--orange-100)',
-                          color: 'var(--orange-700)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '5px'
-                        }}
-                        disabled={updating === member.id}
-                        onClick={() => handleMarkInactive(member.id)}
-                      >
-                        <UserX size={13} />
-                        Mark Inactive
-                      </button>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {!member.is_treasurer && (
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            background: 'var(--orange-100)',
+                            color: 'var(--orange-700)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}
+                          disabled={updating === member.id}
+                          onClick={() => handleMarkInactive(member.id)}
+                        >
+                          <UserX size={13} />
+                          Mark Inactive
+                        </button>
+                      )}
+                      {!member.is_treasurer && !member.is_chairperson && (
+                        <button
+                          className="btn btn-sm btn-ghost"
+                          disabled={updating === member.id}
+                          onClick={() => handleMakeChairperson(member.id)}
+                          title="Appoint as this group's chairperson, so treasurer's own loans have an independent approver"
+                        >
+                          Make Chairperson
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

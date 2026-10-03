@@ -24,6 +24,17 @@ function TreasurerMyContributions() {
 
   return (
     <DashboardLayout title="My Contributions">
+       <button
+        onClick={() => navigate(-1)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--accent-primary)', fontSize: '14px',
+          marginBottom: '16px', padding: '0', display: 'flex',
+          alignItems: 'center', gap: '6px'
+        }}
+      >
+        ← Back to Group
+      </button>
       <h1 className="dashboard-title">My Contributions</h1>
       <p className="dashboard-subtitle">
         Your personal savings contributions across all groups.

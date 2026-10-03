@@ -10,7 +10,7 @@ from .views import (
     RemoveMemberView,
     ArchiveGroupView,
     ArchivedGroupListView,
-    LoanAvailabilityView
+    LoanAvailabilityView,
 )
 
 urlpatterns = [

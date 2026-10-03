@@ -28,6 +28,7 @@ import CycleReport from './pages/CycleReport'
 import ArchivedGroupDetail from './pages/ArchivedGroupDetail'
 import TreasurerMyContributions from './pages/TreasurerMyContributions'
 import TreasurerMyLoans from './pages/TreasurerMyLoans'
+import GlobalSearch from './pages/GlobalSearch'
 import './styles/main.css'
 
 function App() {
@@ -54,34 +55,22 @@ function App() {
           <ProtectedRoute allowedRole="treasurer"><NewCycle /></ProtectedRoute>
         } />
         <Route path="/treasurer/groups/:groupId/activity" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <GroupActivity />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><GroupActivity /></ProtectedRoute>
         } />
         <Route path="/member/groups/:groupId/activity" element={
-          <ProtectedRoute allowedRole="member">
-            <GroupActivity />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="member"><GroupActivity /></ProtectedRoute>
         } />
         <Route path="/treasurer/groups/:groupId/cycle-report" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <CycleReport />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><CycleReport /></ProtectedRoute>
         } />
         <Route path="/member/groups/:groupId/cycle-report" element={
-          <ProtectedRoute allowedRole="member">
-            <CycleReport />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="member"><CycleReport /></ProtectedRoute>
         } />
         <Route path="/treasurer/my-contributions" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <TreasurerMyContributions />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><TreasurerMyContributions /></ProtectedRoute>
         } />
         <Route path="/treasurer/my-loans" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <TreasurerMyLoans />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><TreasurerMyLoans /></ProtectedRoute>
         } />
 
         {/* Treasurer routes */}
@@ -107,24 +96,19 @@ function App() {
           <ProtectedRoute allowedRole="treasurer"><TreasurerNotices /></ProtectedRoute>
         } />
         <Route path="/treasurer/contribute" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <TreasurerMakeContribution />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><TreasurerMakeContribution /></ProtectedRoute>
         } />
         <Route path="/treasurer/apply-loan" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <TreasurerApplyLoan />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><TreasurerApplyLoan /></ProtectedRoute>
         } />
         <Route path="/treasurer/groups/archived/:groupId" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <ArchivedGroupDetail />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><ArchivedGroupDetail /></ProtectedRoute>
         } />
         <Route path="/treasurer/groups/archived/:groupId/cycle-report" element={
-          <ProtectedRoute allowedRole="treasurer">
-            <CycleReport />
-          </ProtectedRoute>
+          <ProtectedRoute allowedRole="treasurer"><CycleReport /></ProtectedRoute>
+        } />
+        <Route path="/treasurer/search" element={
+          <ProtectedRoute allowedRole="treasurer"><GlobalSearch /></ProtectedRoute>
         } />
 
         {/* Member routes */}
@@ -149,7 +133,9 @@ function App() {
         <Route path="/member/groups/:groupId" element={
           <ProtectedRoute allowedRole="member"><MemberGroupDetail /></ProtectedRoute>
         } />
-        <Route path="/terms" element={<TermsAndPrivacy />} />
+        <Route path="/member/search" element={
+          <ProtectedRoute allowedRole="member"><GlobalSearch /></ProtectedRoute>
+        } />
         <Route path="/terms" element={<TermsAndPrivacy />} />
       </Routes>
     </BrowserRouter>

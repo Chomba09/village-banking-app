@@ -358,3 +358,108 @@ class CycleReportView(APIView):
             'member_reports': member_reports,
             'group_totals': group_totals,
         })
+
+class GlobalSearchView(APIView):
+    """Search across members, loans, and transactions the requesting user
+    can see. Treasurers search across their managed groups; members see
+    their own loans/transactions and the member list of groups they belong to."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    RESULT_LIMIT = 15
+
+    def get(self, request):
+        from django.db.models import Q
+        from groups.models import Group, Membership
+        from contributions.models import Contribution
+        from loans.models import Loan
+        from transactions.models import Transaction
+
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'members': [], 'loans': [], 'transactions': []})
+
+        user = request.user
+        is_treasurer = user.role == 'treasurer'
+
+        managed_group_ids = list(
+            Group.objects.filter(treasurer=user).values_list('id', flat=True)
+        ) if is_treasurer else []
+
+        member_group_ids = list(
+            Membership.objects.filter(user=user).values_list('group_id', flat=True)
+        )
+
+        member_qs = Membership.objects.filter(
+            group_id__in=member_group_ids
+        ).filter(
+            Q(user__username__icontains=query) |
+            Q(user__member_id__icontains=query) |
+            Q(user__first_name__icontains=query) |
+            Q(user__last_name__icontains=query) |
+            Q(user__phone_number__icontains=query)
+        ).select_related('user', 'group').distinct()[:self.RESULT_LIMIT]
+
+        members_data = [
+            {
+                'membership_id': m.id,
+                'group_id': m.group_id,
+                'group_name': m.group.name,
+                'username': m.user.username,
+                'member_id': m.user.member_id,
+                'full_name': f"{m.user.first_name} {m.user.last_name}".strip(),
+                'role': m.user.role,
+            }
+            for m in member_qs
+        ]
+
+        loan_qs = Loan.objects.filter(group_id__in=managed_group_ids) if is_treasurer \
+            else Loan.objects.filter(member=user)
+        loan_qs = loan_qs.filter(
+            Q(member__username__icontains=query) |
+            Q(member__member_id__icontains=query) |
+            Q(status__icontains=query) |
+            Q(purpose__icontains=query)
+        ).select_related('member', 'group').distinct().order_by('-applied_at')[:self.RESULT_LIMIT]
+
+        loans_data = [
+            {
+                'id': l.id,
+                'group_id': l.group_id,
+                'group_name': l.group.name,
+                'member_username': l.member.username,
+                'member_id': l.member.member_id,
+                'amount': str(l.amount),
+                'status': l.status,
+            }
+            for l in loan_qs
+        ]
+
+        txn_qs = Transaction.objects.filter(group_id__in=managed_group_ids) if is_treasurer \
+            else Transaction.objects.filter(member=user)
+        txn_qs = txn_qs.filter(
+            Q(member__username__icontains=query) |
+            Q(member__member_id__icontains=query) |
+            Q(transaction_type__icontains=query) |
+            Q(note__icontains=query)
+        ).select_related('member', 'group').distinct()[:self.RESULT_LIMIT]
+
+        transactions_data = [
+            {
+                'id': t.id,
+                'group_id': t.group_id,
+                'group_name': t.group.name,
+                'member_username': t.member.username,
+                'member_id': t.member.member_id,
+                'transaction_type': t.transaction_type,
+                'amount': str(t.amount),
+                'status': t.status,
+                'date': t.date,
+            }
+            for t in txn_qs
+        ]
+
+        return Response({
+            'members': members_data,
+            'loans': loans_data,
+            'transactions': transactions_data,
+        })

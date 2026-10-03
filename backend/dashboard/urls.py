@@ -3,7 +3,8 @@ from .views import (
     TreasurerDashboardView,
     MemberDashboardView,
     GroupFinancialReportView,
-    CycleReportView
+    CycleReportView,
+    GlobalSearchView
 )
 
 urlpatterns = [
@@ -11,4 +12,5 @@ urlpatterns = [
     path('member/', MemberDashboardView.as_view(), name='member-dashboard'),
     path('group/<int:group_id>/report/', GroupFinancialReportView.as_view(), name='group-report'),
     path('group/<int:group_id>/cycle-report/', CycleReportView.as_view(), name='cycle-report'),
+    path('search/', GlobalSearchView.as_view(), name='global-search'),
 ]

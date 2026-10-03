@@ -25,8 +25,12 @@ function Login() {
       const role = profileResponse.data.role
       localStorage.setItem('role', role)
       localStorage.setItem('username', profileResponse.data.username)
+      localStorage.setItem('user_id', profileResponse.data.id)
+      localStorage.setItem('member_id', profileResponse.data.member_id || '')
       if (role === 'treasurer') {
         navigate('/treasurer/dashboard')
+      } else if (role === 'chairperson') {
+        navigate('/chairperson/dashboard')
       } else {
         navigate('/member/dashboard')
       }

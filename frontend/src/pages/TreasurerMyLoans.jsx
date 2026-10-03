@@ -69,6 +69,17 @@ function TreasurerMyLoans() {
 
   return (
     <DashboardLayout title="My Loans">
+      <button
+        onClick={() => navigate(-1)}
+        style={{
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'var(--accent-primary)', fontSize: '14px',
+          marginBottom: '16px', padding: '0', display: 'flex',
+          alignItems: 'center', gap: '6px'
+        }}
+      >
+        ← Back to Group
+      </button>
       <h1 className="dashboard-title">My Loans</h1>
       <p className="dashboard-subtitle">
         Your personal loan requests and repayment history.
