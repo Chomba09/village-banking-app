@@ -52,6 +52,8 @@ class JoinGroupView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, token):
+        """Return group preview info so the member can see what they are
+        joining before they confirm. Does NOT join the group."""
         try:
             group = Group.objects.get(invite_token=token)
         except Group.DoesNotExist:
@@ -70,6 +72,47 @@ class JoinGroupView(APIView):
                              f'{cycle.member_admission_deadline}.'
                 },
                 status=status.HTTP_403_FORBIDDEN
+            )
+
+        already_member = Membership.objects.filter(
+            user=request.user, group=group
+        ).exists()
+
+        return Response({
+            'id': group.id,
+            'name': group.name,
+            'description': group.description,
+            'treasurer': group.treasurer.username,
+            'member_count': group.memberships.count(),
+            'maximum_members': group.maximum_members,
+            'minimum_contribution': str(group.minimum_contribution),
+            'interest_rate': str(group.interest_rate),
+            'cycle_end_date': str(cycle.end_date) if cycle else None,
+            'already_member': already_member,
+        }, status=status.HTTP_200_OK)
+
+    def post(self, request, token):
+        """Actually join the group. Called when the member clicks Confirm."""
+        try:
+            group = Group.objects.get(invite_token=token)
+        except Group.DoesNotExist:
+            return Response(
+                {'error': 'Invalid invite link.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        from django.utils import timezone
+        cycle = group.active_cycle
+        if cycle and timezone.now().date() > cycle.member_admission_deadline:
+            return Response(
+                {'error': 'The admission deadline for this group has passed.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if group.maximum_members and group.memberships.count() >= group.maximum_members:
+            return Response(
+                {'error': 'This group has reached its maximum number of members.'},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
         membership, created = Membership.objects.get_or_create(
