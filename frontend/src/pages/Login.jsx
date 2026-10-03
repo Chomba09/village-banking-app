@@ -27,10 +27,17 @@ function Login() {
       localStorage.setItem('username', profileResponse.data.username)
       localStorage.setItem('user_id', profileResponse.data.id)
       localStorage.setItem('member_id', profileResponse.data.member_id || '')
+
+      // If they landed on login from an invite link, send them back to it
+      const pendingInvite = localStorage.getItem('pending_invite')
+      if (pendingInvite) {
+        localStorage.removeItem('pending_invite')
+        navigate(`/join/${pendingInvite}`)
+        return
+      }
+
       if (role === 'treasurer') {
         navigate('/treasurer/dashboard')
-      } else if (role === 'chairperson') {
-        navigate('/chairperson/dashboard')
       } else {
         navigate('/member/dashboard')
       }

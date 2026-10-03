@@ -87,20 +87,6 @@ function TreasurerGroupMembers() {
     }
   }
 
-  const handleMakeChairperson = async (membershipId) => {
-    setUpdating(membershipId)
-    try {
-      const response = await api.patch(`/groups/${groupId}/set-chairperson/`, {
-        membership_id: membershipId
-      })
-      alert(response.data.message)
-      await fetchData()
-    } catch (err) {
-      alert(err.response?.data?.error || 'Failed to appoint chairperson.')
-    } finally {
-      setUpdating(null)
-    }
-  }
 
   if (loading) return <div className="loading">Loading members...</div>
 
@@ -227,9 +213,7 @@ function TreasurerGroupMembers() {
                     {member.is_treasurer && (
                       <span className="badge badge-treasurer" style={{ marginLeft: '6px' }}>Treasurer</span>
                     )}
-                    {member.is_chairperson && (
-                      <span className="badge badge-chairperson" style={{ marginLeft: '6px' }}>Chairperson</span>
-                    )}
+
                   </td>
                   <td>{member.username}</td>
                   <td>
@@ -266,16 +250,7 @@ function TreasurerGroupMembers() {
                           Mark Inactive
                         </button>
                       )}
-                      {!member.is_treasurer && !member.is_chairperson && (
-                        <button
-                          className="btn btn-sm btn-ghost"
-                          disabled={updating === member.id}
-                          onClick={() => handleMakeChairperson(member.id)}
-                          title="Appoint as this group's chairperson, so treasurer's own loans have an independent approver"
-                        >
-                          Make Chairperson
-                        </button>
-                      )}
+
                     </div>
                   </td>
                 </tr>
