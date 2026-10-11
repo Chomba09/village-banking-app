@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Group, Membership, Cycle
 from django.contrib.auth import get_user_model
+import os
 
 User = get_user_model()
 
@@ -70,7 +71,8 @@ class GroupSerializer(serializers.ModelSerializer):
         ]
 
     def get_invite_link(self, obj):
-        return f"http://localhost:5173/join/{obj.invite_token}/"
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        return f"{frontend_url}/join/{obj.invite_token}/"
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
@@ -100,7 +102,8 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         ]
 
     def get_invite_link(self, obj):
-        return f"http://localhost:5173/join/{obj.invite_token}/"
+        frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+        return f"{frontend_url}/join/{obj.invite_token}/"
 
     def validate(self, data):
         if data['stop_saving_date'] > data['end_date']:
