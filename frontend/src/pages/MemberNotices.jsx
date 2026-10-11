@@ -6,6 +6,8 @@ import { Bell, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 
 function MemberNotices() {
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')
+  const base = role === 'chairperson' ? 'chairperson' : 'member'
   const [allNotices, setAllNotices] = useState([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState(null)
@@ -49,6 +51,9 @@ function MemberNotices() {
 
   return (
     <DashboardLayout title="Notices">
+      <button className="back-btn" onClick={() => navigate(`/${base}/dashboard`)}>
+        ← Back to Dashboard
+      </button>
       <h1 className="dashboard-title">Notices</h1>
       <p className="dashboard-subtitle">
         Announcements from all your groups, newest first.
@@ -156,7 +161,7 @@ function MemberNotices() {
                       className="btn btn-ghost btn-sm"
                       onClick={() => {
                         localStorage.setItem('active_group_id', notice.group_id)
-                        navigate(`/member/groups/${notice.group_id}`)
+                        navigate(`/${base}/groups/${notice.group_id}`)
                       }}
                       style={{
                         display: 'inline-flex',

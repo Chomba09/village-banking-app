@@ -6,7 +6,9 @@ from .views import (
     LoanStatusUpdateView,
     LoanRepaymentView,
     LoanDetailView,
-    GroupLoanActivityView
+    GroupLoanActivityView,
+    ChairpersonPendingLoansView,
+    ChairpersonLoanApprovalView,
 )
 
 urlpatterns = [
@@ -17,4 +19,6 @@ urlpatterns = [
     path('<int:pk>/', LoanDetailView.as_view(), name='loan-detail'),
     path('repay/', LoanRepaymentView.as_view(), name='loan-repay'),
     path('group/<int:group_id>/activity/', GroupLoanActivityView.as_view(), name='group-loan-activity'),
+    path('chairperson/pending/', ChairpersonPendingLoansView.as_view(), name='chairperson-pending-loans'),
+    path('<int:pk>/chairperson-approve/', ChairpersonLoanApprovalView.as_view(), name='chairperson-loan-approval'),
 ]

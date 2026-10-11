@@ -9,11 +9,9 @@ function ProtectedRoute({ children, allowedRole }) {
   }
 
   if (allowedRole && role !== allowedRole) {
-    if (role === 'treasurer') {
-      return <Navigate to="/treasurer/dashboard" replace />
-    } else {
-      return <Navigate to="/member/dashboard" replace />
-    }
+    if (role === 'treasurer') return <Navigate to="/treasurer/dashboard" replace />
+    if (role === 'chairperson') return <Navigate to="/chairperson/dashboard" replace />
+    return <Navigate to="/member/dashboard" replace />
   }
 
   return children

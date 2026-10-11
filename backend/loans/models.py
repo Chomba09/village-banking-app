@@ -28,8 +28,17 @@ class Loan(models.Model):
     purpose = models.TextField(blank=True, null=True)
     applied_at = models.DateTimeField(auto_now_add=True)
     submitted_by_treasurer = models.BooleanField(default=False)
+    treasurer_approved = models.BooleanField(default=False)     
+    chairperson_approved = models.BooleanField(default=False)
     approved_at = models.DateTimeField(blank=True, null=True)
     due_date = models.DateField(blank=True, null=True)
+
+    # Dual-approval tracking
+    # For member loans: both must be True before status → approved
+    # For treasurer loans: only chairperson_approved needed (no self-approval)
+    # For chairperson loans: only treasurer_approved needed (no self-approval)
+    treasurer_approved = models.BooleanField(default=False)
+    chairperson_approved = models.BooleanField(default=False)
 
     @property
     def interest_amount(self):

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
@@ -8,6 +9,8 @@ function MemberDashboard() {
   const [dashboardData, setDashboardData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const role = localStorage.getItem('role')                    
+  const [pendingApprovals, setPendingApprovals] = useState(0)  
 
   useEffect(() => {
     const fetchDashboard = async () => {
@@ -23,6 +26,14 @@ function MemberDashboard() {
     fetchDashboard()
   }, [])
 
+   useEffect(() => {                                           
+    if (role === 'chairperson') {
+      api.get('/loans/chairperson/pending/')
+        .then(res => setPendingApprovals(res.data.length))
+        .catch(() => {})
+    }
+  }, []) 
+
   if (loading) return <div className="loading">Loading dashboard...</div>
   if (error) return <div className="alert alert-error">{error}</div>
 
@@ -32,6 +43,35 @@ function MemberDashboard() {
       <p className="dashboard-subtitle">
         Welcome back, {dashboardData.member}. Select a group to view its details.
       </p>
+
+      {role === 'chairperson' && pendingApprovals > 0 && (  
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            cursor: 'pointer',
+            color: 'white',
+            boxShadow: 'var(--shadow-md)',
+          }}
+          onClick={() => navigate('/chairperson/approvals')}
+        >
+          <AlertCircle size={22} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: '700', fontSize: '15px' }}>
+              {pendingApprovals} loan{pendingApprovals !== 1 ? 's' : ''} awaiting your approval
+            </div>
+            <div style={{ fontSize: '13px', opacity: 0.85 }}>
+              Click to review and approve or reject
+            </div>
+          </div>
+          <span style={{ fontSize: '20px' }}>→</span>
+        </div>
+      )}   
 
       <div className="stats-grid" style={{ marginBottom: '28px' }}>
         <div className="stat-card">
@@ -52,7 +92,8 @@ function MemberDashboard() {
             style={{ cursor: 'pointer', transition: 'var(--transition)' }}
             onClick={() => {
               localStorage.setItem('active_group_id', group.group_id)
-              navigate(`/member/groups/${group.group_id}`)
+              const base = role === 'chairperson' ? 'chairperson' : 'member'
+              navigate(`/${base}/groups/${group.group_id}`)
             }}
             onMouseEnter={e => e.currentTarget.style.boxShadow = 'var(--shadow-md)'}
             onMouseLeave={e => e.currentTarget.style.boxShadow = 'var(--shadow-sm)'}

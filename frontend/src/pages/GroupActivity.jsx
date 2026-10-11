@@ -46,7 +46,9 @@ function GroupActivity() {
 
   const backPath = role === 'treasurer'
     ? `/treasurer/groups/${groupId}`
-    : `/member/groups/${groupId}`
+    : role === 'chairperson'
+      ? `/chairperson/groups/${groupId}`
+      : `/member/groups/${groupId}`
 
   if (loading) return <div className="loading">Loading group activity...</div>
 

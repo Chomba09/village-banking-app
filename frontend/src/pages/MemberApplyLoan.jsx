@@ -41,14 +41,27 @@ function MemberApplyLoan() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+    if (e.target.name === 'amount') setError('')
   }
+
+  // Live inline hint shown beneath the amount field as user types
+  const amountEntered = Number(formData.amount)
+  const maxAvailable = availability ? Number(availability.available_amount) : null
+  const amountExceedsPool = maxAvailable !== null && formData.amount !== '' && amountEntered > maxAvailable
+  const amountBelowMin = formData.amount !== '' && amountEntered < 1
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    if (availability && Number(formData.amount) > Number(availability.available_amount)) {
+    if (amountBelowMin) {
+      setError('Please enter a loan amount of at least K1.')
+      return
+    }
+
+    if (amountExceedsPool) {
       setError(
-        `Loan amount exceeds the available pool. Maximum available: K${Number(availability.available_amount).toFixed(2)}.`
+        `The amount you entered (K${amountEntered.toFixed(2)}) exceeds the available pool. ` +
+        `Maximum you can borrow right now: K${maxAvailable.toFixed(2)}.`
       )
       return
     }
@@ -208,7 +221,18 @@ function MemberApplyLoan() {
                 min="1"
                 max={availability ? Number(availability.available_amount) : undefined}
                 required
+                style={{ borderColor: amountExceedsPool ? '#b91c1c' : undefined }}
               />
+              {amountExceedsPool && (
+                <p style={{ fontSize: '12px', color: '#b91c1c', marginTop: '4px' }}>
+                  Amount exceeds the available pool. Maximum you can borrow: <strong>K{maxAvailable.toFixed(2)}</strong>.
+                </p>
+              )}
+              {!amountExceedsPool && maxAvailable !== null && formData.amount !== '' && amountEntered > 0 && (
+                <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>
+                  ✓ Amount is within the available pool.
+                </p>
+              )}
             </div>
 
             <div className="form-group">
@@ -239,7 +263,8 @@ function MemberApplyLoan() {
               disabled={
                 submitting ||
                 !availability ||
-                Number(availability.available_amount) === 0
+                Number(availability.available_amount) === 0 ||
+                amountExceedsPool
               }
             >
               {submitting ? 'Submitting...' : 'Submit Application'}

@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function TransactionHistory() {
+  const navigate = useNavigate()
+  const role = localStorage.getItem('role')
+  const base = role === 'chairperson' ? 'chairperson' : role === 'treasurer' ? 'treasurer' : 'member'
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('')
@@ -27,6 +31,9 @@ function TransactionHistory() {
 
   return (
     <DashboardLayout title="Transaction History">
+      <button className="back-btn" onClick={() => navigate(`/${base}/dashboard`)}>
+        ← Back to Dashboard
+      </button>
       <h1 className="dashboard-title">Transaction History</h1>
       <p className="dashboard-subtitle">A full log of all your financial activity.</p>
 

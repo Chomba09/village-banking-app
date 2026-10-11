@@ -29,6 +29,7 @@ import ArchivedGroupDetail from './pages/ArchivedGroupDetail'
 import TreasurerMyContributions from './pages/TreasurerMyContributions'
 import TreasurerMyLoans from './pages/TreasurerMyLoans'
 import GlobalSearch from './pages/GlobalSearch'
+import ChairpersonApprovals from './pages/ChairpersonApprovals'
 import './styles/main.css'
 
 function App() {
@@ -137,6 +138,44 @@ function App() {
           <ProtectedRoute allowedRole="member"><GlobalSearch /></ProtectedRoute>
         } />
         <Route path="/terms" element={<TermsAndPrivacy />} />
+
+        {/* Chairperson routes */}
+        <Route path="/chairperson/dashboard" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberDashboard /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/groups/:groupId" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberGroupDetail /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/contributions/:groupId" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberContributions /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/loans/:groupId" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberLoans /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/groups/:groupId/activity" element={
+          <ProtectedRoute allowedRole="chairperson"><GroupActivity /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/groups/:groupId/cycle-report" element={
+          <ProtectedRoute allowedRole="chairperson"><CycleReport /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/contribute" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberMakeContribution /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/apply-loan" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberApplyLoan /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/approvals" element={
+          <ProtectedRoute allowedRole="chairperson"><ChairpersonApprovals /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/notices" element={
+          <ProtectedRoute allowedRole="chairperson"><MemberNotices /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/transactions" element={
+          <ProtectedRoute allowedRole="chairperson"><TransactionHistory /></ProtectedRoute>
+        } />
+        <Route path="/chairperson/notifications" element={
+          <ProtectedRoute allowedRole="chairperson"><Notifications /></ProtectedRoute>
+        } />
       </Routes>
     </BrowserRouter>
   )

@@ -37,10 +37,22 @@ function TreasurerApplyLoan() {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
+    if (e.target.name === 'amount') setError('')
   }
+
+  const amountEntered = Number(formData.amount)
+  const maxAvailable = availability ? Number(availability.available_amount) : null
+  const amountExceedsPool = maxAvailable !== null && formData.amount !== '' && amountEntered > maxAvailable
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (amountExceedsPool) {
+      setError(
+        `The amount you entered (K${amountEntered.toFixed(2)}) exceeds the available pool. ` +
+        `Maximum available: K${maxAvailable.toFixed(2)}.`
+      )
+      return
+    }
     setSubmitting(true)
     setError('')
     setSuccess('')
@@ -162,7 +174,14 @@ function TreasurerApplyLoan() {
           </div>
 
           <div className="form-group">
-            <label>Amount (K) *</label>
+            <label>
+              Amount (K) *
+              {maxAvailable !== null && (
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400', marginLeft: '8px' }}>
+                  Max available: K{maxAvailable.toFixed(2)}
+                </span>
+              )}
+            </label>
             <input
               type="number"
               name="amount"
@@ -171,8 +190,20 @@ function TreasurerApplyLoan() {
               placeholder="Enter loan amount"
               step="0.01"
               min="1"
+              max={maxAvailable || undefined}
               required
+              style={{ borderColor: amountExceedsPool ? '#b91c1c' : undefined }}
             />
+            {amountExceedsPool && (
+              <p style={{ fontSize: '12px', color: '#b91c1c', marginTop: '4px' }}>
+                Amount exceeds the available pool. Maximum you can borrow: <strong>K{maxAvailable.toFixed(2)}</strong>.
+              </p>
+            )}
+            {!amountExceedsPool && maxAvailable !== null && formData.amount !== '' && amountEntered > 0 && (
+              <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>
+                ✓ Amount is within the available pool.
+              </p>
+            )}
           </div>
 
           <div className="form-group">
@@ -201,7 +232,7 @@ function TreasurerApplyLoan() {
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={submitting}
+            disabled={submitting || amountExceedsPool}
           >
             {submitting ? 'Submitting...' : 'Submit Application'}
           </button>

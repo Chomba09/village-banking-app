@@ -124,18 +124,7 @@ function JoinGroup() {
               </div>
             </div>
 
-            <div style={{
-              background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)',
-              padding: '14px', border: '1px solid var(--border-color)'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <PiggyBank size={15} color="var(--accent-primary)" />
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Min. Contribution</span>
-              </div>
-              <div style={{ fontSize: '18px', fontWeight: '700', color: 'var(--text-primary)' }}>
-                K{Number(group.minimum_contribution).toFixed(0)}
-              </div>
-            </div>
+            
 
             <div style={{
               background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)',

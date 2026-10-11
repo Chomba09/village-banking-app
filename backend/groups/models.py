@@ -11,6 +11,15 @@ class Group(models.Model):
         on_delete=models.CASCADE,
         related_name='managed_groups'
     )
+    # The chairperson is one member of the group elected by the treasurer.
+    # Null means no chairperson has been assigned yet.
+    chairperson = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='chaired_groups'
+    )
     invite_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     is_archived = models.BooleanField(default=False)

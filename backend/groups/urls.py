@@ -11,6 +11,8 @@ from .views import (
     ArchiveGroupView,
     ArchivedGroupListView,
     LoanAvailabilityView,
+    AssignChairpersonView,
+    RemoveChairpersonView,
 )
 
 urlpatterns = [
@@ -24,5 +26,7 @@ urlpatterns = [
     path('<int:group_id>/members/<int:membership_id>/status/', MemberStatusUpdateView.as_view(), name='member-status'),
     path('<int:group_id>/members/<int:membership_id>/remove/', RemoveMemberView.as_view(), name='remove-member'),
     path('<int:group_id>/loan-availability/', LoanAvailabilityView.as_view(), name='loan-availability'),
+    path('<int:group_id>/assign-chairperson/', AssignChairpersonView.as_view(), name='assign-chairperson'),
+    path('<int:group_id>/remove-chairperson/', RemoveChairpersonView.as_view(), name='remove-chairperson'),
     path('archived/', ArchivedGroupListView.as_view(), name='archived-groups'),
 ]

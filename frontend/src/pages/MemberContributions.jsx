@@ -6,6 +6,8 @@ import api from '../api/axios'
 function MemberContributions() {
   const { groupId } = useParams()
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')
+  const base = role === 'chairperson' ? 'chairperson' : 'member'
 
   const [contributions, setContributions] = useState([])
   const [loading, setLoading] = useState(true)
@@ -69,7 +71,7 @@ function MemberContributions() {
   return (
     <DashboardLayout title="My Contributions">
       <div>
-        <button className="back-btn" onClick={() => navigate(`/member/groups/${groupId}`)}>
+        <button className="back-btn" onClick={() => navigate(`/${base}/groups/${groupId}`)}>
           ← Back to Group
         </button>
 

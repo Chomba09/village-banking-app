@@ -230,8 +230,8 @@ function TreasurerLoans() {
                   )}
                 </p>
 
-                {/* Pending — approve or reject */}
-                {loan.status === 'pending' && (
+                {/* Pending — treasurer hasn't acted yet */}
+                {loan.status === 'pending' && !loan.treasurer_approved && (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -243,11 +243,7 @@ function TreasurerLoans() {
                     border: '1px solid var(--border-color)'
                   }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{
-                        fontSize: '12px',
-                        color: 'var(--text-muted)',
-                        marginBottom: '4px'
-                      }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                         Will be approved with:
                       </div>
                       <div style={{
@@ -280,6 +276,29 @@ function TreasurerLoans() {
                       >
                         Reject
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Pending — treasurer approved, waiting for chairperson */}
+                {loan.status === 'pending' && loan.treasurer_approved && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 16px',
+                    background: 'var(--yellow-50, #fefce8)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--yellow-200, #fef08a)'
+                  }}>
+                    <span style={{ fontSize: '18px' }}>⏳</span>
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: '600', color: 'var(--yellow-700, #a16207)' }}>
+                        Your approval recorded — awaiting chairperson
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        This loan will be released once the chairperson gives their final approval.
+                      </div>
                     </div>
                   </div>
                 )}

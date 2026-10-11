@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
 function Notifications() {
+  const navigate = useNavigate()
+  const role = localStorage.getItem('role')
+  const base = role === 'chairperson' ? 'chairperson' : role === 'treasurer' ? 'treasurer' : 'member'
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -47,6 +51,9 @@ function Notifications() {
 
   return (
     <DashboardLayout title="Notifications">
+      <button className="back-btn" onClick={() => navigate(`/${base}/dashboard`)}>
+        ← Back to Dashboard
+      </button>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <div>
           <h1 className="dashboard-title">Notifications</h1>

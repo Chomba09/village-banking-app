@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 
@@ -10,6 +11,7 @@ function CycleReport() {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     api.get(`/dashboard/group/${groupId}/cycle-report/`)
@@ -24,6 +26,180 @@ function CycleReport() {
 
   const fmt = (val) => `K${Number(val).toFixed(2)}`
 
+  const handleExportPDF = async () => {
+    setExporting(true)
+    try {
+      // Load jsPDF from CDN dynamically — no npm install needed
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js')
+
+      const { jsPDF } = window.jspdf
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+      const pageW = doc.internal.pageSize.getWidth()
+      const margin = 14
+
+      // ── Header ──
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(16)
+      doc.text('VILLAGE BANKING GROUP — CYCLE FINANCIAL REPORT', pageW / 2, 16, { align: 'center' })
+
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(10)
+      doc.text(report.group_name, pageW / 2, 23, { align: 'center' })
+      doc.text(
+        `${report.cycle_name}  |  ${report.start_date} to ${report.end_date}  |  Interest Rate: ${report.interest_rate}%`,
+        pageW / 2, 29, { align: 'center' }
+      )
+      doc.text(
+        `Generated: ${new Date(report.generated_at).toLocaleString()}`,
+        pageW / 2, 35, { align: 'center' }
+      )
+
+      // ── Summary row ──
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      const summaryY = 42
+      const summaryItems = [
+        ['Total Savings', fmt(report.group_totals.total_savings)],
+        ['Total Loans Issued', fmt(report.group_totals.total_borrowed)],
+        ['Total Interest Earned', fmt(report.group_totals.total_interest_charged)],
+        ['Total Repaid', fmt(report.group_totals.total_repaid)],
+        ['Total Outstanding', fmt(report.group_totals.total_outstanding)],
+        ['Total Payout', fmt(report.group_totals.total_payout)],
+      ]
+      const colW = (pageW - margin * 2) / summaryItems.length
+      summaryItems.forEach(([label, value], i) => {
+        const x = margin + i * colW + colW / 2
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+        doc.text(label, x, summaryY, { align: 'center' })
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10)
+        doc.text(value, x, summaryY + 6, { align: 'center' })
+      })
+
+      // ── Main table ──
+      const tableHead = [
+        ['#', 'Member', 'Total\nSavings', 'Loan\nTaken', 'Interest\nCharged',
+         'Loan\nPayable', 'Total\nRepaid', 'Outstanding\nBalance',
+         'Eligible\nAmount', 'Interest\nShare', 'Final\nPayout']
+      ]
+
+      const tableBody = report.member_reports.map((m, i) => [
+        i + 1,
+        m.full_name + (m.submitted_by_treasurer ? '\n(Treasurer)' : ''),
+        fmt(m.total_savings),
+        fmt(m.total_borrowed),
+        fmt(m.interest_charged),
+        fmt(m.loan_amount_payable),
+        fmt(m.total_repaid),
+        Number(m.outstanding_balance) > 0 ? fmt(m.outstanding_balance) : '—',
+        fmt(m.eligible_amount),
+        fmt(m.interest_earned_share),
+        fmt(m.final_payout),
+      ])
+
+      // Totals row
+      const gt = report.group_totals
+      tableBody.push([
+        '', 'TOTALS',
+        fmt(gt.total_savings), fmt(gt.total_borrowed),
+        fmt(gt.total_interest_charged), fmt(gt.total_loan_payable),
+        fmt(gt.total_repaid), fmt(gt.total_outstanding),
+        fmt(gt.total_eligible), fmt(gt.total_interest_shared),
+        fmt(gt.total_payout),
+      ])
+
+      doc.autoTable({
+        head: tableHead,
+        body: tableBody,
+        startY: summaryY + 14,
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 2, halign: 'center', valign: 'middle' },
+        headStyles: {
+          fillColor: [91, 33, 182],  // purple
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          1: { halign: 'left', cellWidth: 30 },
+        },
+        didParseCell(data) {
+          // Highlight totals row
+          if (data.row.index === tableBody.length - 1) {
+            data.cell.styles.fillColor = [240, 234, 255]
+            data.cell.styles.fontStyle = 'bold'
+          }
+          // Highlight outstanding balance in red if > 0
+          if (data.column.index === 7 && data.row.index < tableBody.length - 1) {
+            const val = report.member_reports[data.row.index]?.outstanding_balance
+            if (val && Number(val) > 0) {
+              data.cell.styles.textColor = [185, 28, 28]
+              data.cell.styles.fontStyle = 'bold'
+            }
+          }
+          // Highlight final payout column
+          if (data.column.index === 10) {
+            data.cell.styles.textColor = [91, 33, 182]
+            data.cell.styles.fontStyle = 'bold'
+          }
+        },
+      })
+
+      // ── Footer notes ──
+      const finalY = doc.lastAutoTable.finalY + 6
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7.5)
+      doc.setTextColor(100)
+      const notes = [
+        'Eligible Amount = Total savings × 2 (maximum loan a member can request)',
+        'Interest Share = (Member savings ÷ Total group savings) × Total interest earned',
+        'Final Payout = Total savings + Interest share (amount member receives at end of cycle)',
+        'Members with outstanding balances must clear them before the next cycle begins',
+      ]
+      notes.forEach((note, i) => {
+        doc.text(`• ${note}`, margin, finalY + i * 4.5)
+      })
+
+      // ── Page numbers ──
+      const pageCount = doc.internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(8)
+        doc.setTextColor(150)
+        doc.text(
+          `Page ${i} of ${pageCount}  —  ${report.group_name}`,
+          pageW / 2,
+          doc.internal.pageSize.getHeight() - 6,
+          { align: 'center' }
+        )
+      }
+
+      // ── Save ──
+      const filename = `${report.group_name.replace(/\s+/g, '_')}_${report.cycle_name.replace(/\s+/g, '_')}_Report.pdf`
+      doc.save(filename)
+    } catch (err) {
+      console.error('PDF export failed:', err)
+      alert('PDF export failed. Please check your internet connection and try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) { resolve(); return }
+      const script = document.createElement('script')
+      script.src = src
+      script.onload = resolve
+      script.onerror = reject
+      document.head.appendChild(script)
+    })
+  }
+
   if (loading) return <div className="loading">Generating report...</div>
   if (error) return <div className="alert alert-error">{error}</div>
 
@@ -36,14 +212,32 @@ function CycleReport() {
       </button>
 
       {/* Report header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h1 className="dashboard-title">{report.group_name}</h1>
-        <p className="dashboard-subtitle">
-          Financial Report — {report.cycle_name} &nbsp;|&nbsp;
-          {report.start_date} to {report.end_date} &nbsp;|&nbsp;
-          Interest Rate: {report.interest_rate}% &nbsp;|&nbsp;
-          Generated: {new Date(report.generated_at).toLocaleString()}
-        </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 className="dashboard-title">{report.group_name}</h1>
+          <p className="dashboard-subtitle">
+            Financial Report — {report.cycle_name} &nbsp;|&nbsp;
+            {report.start_date} to {report.end_date} &nbsp;|&nbsp;
+            Interest Rate: {report.interest_rate}% &nbsp;|&nbsp;
+            Generated: {new Date(report.generated_at).toLocaleString()}
+          </p>
+        </div>
+        <button
+          onClick={handleExportPDF}
+          disabled={exporting}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '8px',
+            padding: '10px 20px', borderRadius: 'var(--radius-sm)',
+            background: exporting ? 'var(--text-muted)' : '#16a34a',
+            color: 'white', border: 'none', cursor: exporting ? 'not-allowed' : 'pointer',
+            fontWeight: '600', fontSize: '14px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Download size={16} />
+          {exporting ? 'Generating PDF...' : 'Download PDF'}
+        </button>
       </div>
 
       {/* Summary cards */}

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import api from '../api/axios'
 
 function Login() {
@@ -7,6 +8,7 @@ function Login() {
   const [formData, setFormData] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -28,7 +30,6 @@ function Login() {
       localStorage.setItem('user_id', profileResponse.data.id)
       localStorage.setItem('member_id', profileResponse.data.member_id || '')
 
-      // If they landed on login from an invite link, send them back to it
       const pendingInvite = localStorage.getItem('pending_invite')
       if (pendingInvite) {
         localStorage.removeItem('pending_invite')
@@ -41,11 +42,26 @@ function Login() {
       } else {
         navigate('/member/dashboard')
       }
-    } catch {
-      setError('Invalid username or password. Please try again.')
+    } catch (err) {
+      const data = err.response?.data
+      if (data?.detail) {
+        setError(data.detail)
+      } else if (data?.non_field_errors) {
+        setError(data.non_field_errors[0])
+      } else {
+        setError('Invalid username or password. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const inputWrap = { position: 'relative' }
+  const eyeBtn = {
+    position: 'absolute', right: '10px', top: '50%',
+    transform: 'translateY(-50%)', background: 'none',
+    border: 'none', cursor: 'pointer', padding: '4px',
+    color: 'var(--text-muted)', display: 'flex', alignItems: 'center'
   }
 
   return (
@@ -53,7 +69,8 @@ function Login() {
       <div className="auth-left">
         <div className="auth-left-brand">
           <div className="auth-left-brand-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="7" width="20" height="14" rx="2"/>
               <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
               <line x1="12" y1="12" x2="12" y2="16"/>
@@ -97,14 +114,26 @@ function Login() {
             </div>
             <div className="form-group">
               <label>Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                required
-              />
+              <div style={inputWrap}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  required
+                  style={{ paddingRight: '38px' }}
+                />
+                <button
+                  type="button"
+                  style={eyeBtn}
+                  onClick={() => setShowPassword(v => !v)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <button
               type="submit"

@@ -28,6 +28,7 @@ class LoanRepaymentSerializer(serializers.ModelSerializer):
 
 class LoanSerializer(serializers.ModelSerializer):
     member_username = serializers.CharField(source='member.username', read_only=True)
+    member_name = serializers.SerializerMethodField()
     group_name = serializers.CharField(source='group.name', read_only=True)
     group_interest_rate = serializers.SerializerMethodField()
     cycle_end_date = serializers.SerializerMethodField()
@@ -40,13 +41,21 @@ class LoanSerializer(serializers.ModelSerializer):
     class Meta:
         model = Loan
         fields = [
-            'id', 'member_username', 'group', 'group_name',
+            'id', 'member', 'member_username', 'member_name',
+            'group', 'group_name',
             'group_interest_rate', 'cycle_end_date',
             'amount', 'interest_rate', 'interest_amount',
             'total_due', 'total_repaid', 'balance_remaining',
             'status', 'purpose', 'applied_at', 'approved_at',
-            'due_date', 'repayments', 'submitted_by_treasurer'
+            'due_date', 'repayments', 'submitted_by_treasurer',
+            'treasurer_approved', 'chairperson_approved',
         ]
+
+    def get_member_name(self, obj):
+        first = obj.member.first_name or ''
+        last = obj.member.last_name or ''
+        full = f"{first} {last}".strip()
+        return full if full else obj.member.username
 
     def get_total_repaid(self, obj):
         return float(obj.total_repaid)
@@ -71,12 +80,17 @@ class LoanCreateSerializer(serializers.ModelSerializer):
 
     def validate_group(self, group):
         user = self.context['request'].user
+        # Treasurer applying to their own group
         if user.role == 'treasurer' and group.treasurer == user:
             return group
+        # Chairperson applying as a group member
+        if user.role == 'chairperson':
+            if group.memberships.filter(user=user, status='active').exists():
+                return group
+            raise serializers.ValidationError('You are not an active member of this group.')
+        # Ordinary member
         if not group.memberships.filter(user=user, status='active').exists():
-            raise serializers.ValidationError(
-                'You are not an active member of this group.'
-            )
+            raise serializers.ValidationError('You are not an active member of this group.')
         return group
 
     def validate(self, data):
@@ -90,11 +104,8 @@ class LoanCreateSerializer(serializers.ModelSerializer):
         cycle = group.active_cycle
 
         if not cycle:
-            raise serializers.ValidationError(
-                'This group has no active cycle.'
-            )
+            raise serializers.ValidationError('This group has no active cycle.')
 
-        # Check stop borrowing date
         from django.utils import timezone
         today = timezone.now().date()
         if today > cycle.stop_borrowing_date:
@@ -103,48 +114,38 @@ class LoanCreateSerializer(serializers.ModelSerializer):
                 f'The borrowing deadline was {cycle.stop_borrowing_date}.'
             )
 
-        # Check loan ceiling — double the member's total confirmed savings
         from contributions.models import Contribution
         from django.db.models import Sum
         from decimal import Decimal
 
         member_savings = Contribution.objects.filter(
-            member=user,
-            group=group,
-            status='confirmed'
+            member=user, group=group, status='confirmed'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         loan_ceiling = member_savings * Decimal('2')
 
         if member_savings == 0:
             raise serializers.ValidationError(
-                'You must make at least one confirmed contribution '
-                'before applying for a loan.'
+                'You must make at least one confirmed contribution before applying for a loan.'
             )
 
         if amount > loan_ceiling:
             raise serializers.ValidationError(
                 f'Loan amount exceeds your eligible limit. '
                 f'Your total savings: K{member_savings:.2f}. '
-                f'Maximum loan you can request: K{loan_ceiling:.2f} '
-                f'(double your savings).'
+                f'Maximum loan you can request: K{loan_ceiling:.2f} (double your savings).'
             )
 
-        # Check available pool
         total_savings = Contribution.objects.filter(
-            group=group,
-            status='confirmed'
+            group=group, status='confirmed'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
         max_loan_percentage = cycle.max_loan_percentage
-        total_pool = (
-            total_savings * max_loan_percentage / Decimal('100')
-        ).quantize(Decimal('0.01'))
+        total_pool = (total_savings * max_loan_percentage / Decimal('100')).quantize(Decimal('0.01'))
 
         outstanding_loans = Decimal('0.00')
         from loans.models import Loan
-        approved_loans = Loan.objects.filter(group=group, status='approved')
-        for loan in approved_loans:
+        for loan in Loan.objects.filter(group=group, status='approved'):
             if loan.balance_remaining > 0:
                 outstanding_loans += loan.balance_remaining
 
@@ -174,7 +175,8 @@ class LoanStatusSerializer(serializers.ModelSerializer):
         fields = ['id', 'status']
 
     def validate(self, data):
-        if data.get('status') == 'approved':
+        requested = data.get('status')
+        if requested == 'approved':
             loan = self.instance
             group = loan.group
             cycle = group.active_cycle
@@ -182,14 +184,11 @@ class LoanStatusSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     'This group has no active cycle. Cannot approve loan.'
                 )
+            if loan.status != 'pending':
+                raise serializers.ValidationError(
+                    'Only pending loans can be approved.'
+                )
         return data
 
     def update(self, instance, validated_data):
-        if validated_data.get('status') == 'approved':
-            from django.utils import timezone
-            group = instance.group
-            cycle = group.active_cycle
-            validated_data['interest_rate'] = group.interest_rate
-            validated_data['due_date'] = cycle.end_date
-            validated_data['approved_at'] = timezone.now()
-        return super().update(instance, validated_data)
+        return instance

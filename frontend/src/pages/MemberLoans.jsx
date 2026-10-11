@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
+import RepaymentModal from '../components/RepaymentModal'
 import api from '../api/axios'
 
 function MemberLoans() {
   const { groupId } = useParams()
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')
+  const base = role === 'chairperson' ? 'chairperson' : 'member'
 
   const [loans, setLoans] = useState([])
   const [loading, setLoading] = useState(true)
@@ -13,8 +16,7 @@ function MemberLoans() {
   const [success, setSuccess] = useState('')
   const [showLoanForm, setShowLoanForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [repaymentData, setRepaymentData] = useState({})
-  const [repaying, setRepaying] = useState(null)
+  const [repayingLoan, setRepayingLoan] = useState(null)
 
   const [loanForm, setLoanForm] = useState({
     amount: '',
@@ -66,32 +68,10 @@ function MemberLoans() {
     }
   }
 
-  const handleRepaymentChange = (loanId, value) => {
-    setRepaymentData({ ...repaymentData, [loanId]: value })
-  }
-
-  const handleRepayment = async (loanId) => {
-    if (!repaymentData[loanId]) {
-      alert('Please enter a repayment amount.')
-      return
-    }
-    setRepaying(loanId)
-    setError('')
-    setSuccess('')
-
-    try {
-      await api.post('/loans/repay/', {
-        loan: loanId,
-        amount: repaymentData[loanId],
-      })
-      setSuccess('Repayment submitted successfully!')
-      setRepaymentData({ ...repaymentData, [loanId]: '' })
-      fetchLoans()
-    } catch (err) {
-      setError(err.response?.data?.non_field_errors?.[0] || 'Failed to submit repayment.')
-    } finally {
-      setRepaying(null)
-    }
+  const handleRepaymentSuccess = () => {
+    setSuccess('Repayment submitted successfully!')
+    setRepayingLoan(null)
+    fetchLoans()
   }
 
   if (loading) return <div className="loading">Loading loans...</div>
@@ -99,7 +79,7 @@ function MemberLoans() {
   return (
     <DashboardLayout title="My Loans">
       <div>
-        <button className="back-btn" onClick={() => navigate(`/member/groups/${groupId}`)}>
+        <button className="back-btn" onClick={() => navigate(`/${base}/groups/${groupId}`)}>
           ← Back to Group
         </button>
 
@@ -197,26 +177,56 @@ function MemberLoans() {
                     {loan.due_date && <> &nbsp;|&nbsp; <strong>Due:</strong> {loan.due_date}</>}
                   </p>
 
+                  {/* Dual-approval progress for pending loans */}
+                  {loan.status === 'pending' && (
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px',
+                      marginBottom: '12px',
+                      padding: '10px 14px',
+                      background: 'var(--bg-primary)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)',
+                      flexWrap: 'wrap'
+                    }}>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '4px', alignSelf: 'center' }}>
+                        Approvals:
+                      </span>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '2px 10px',
+                        borderRadius: '20px',
+                        background: loan.treasurer_approved ? 'var(--green-100, #dcfce7)' : 'var(--bg-card)',
+                        color: loan.treasurer_approved ? 'var(--green-700, #15803d)' : 'var(--text-muted)',
+                        border: '1px solid',
+                        borderColor: loan.treasurer_approved ? 'var(--green-300, #86efac)' : 'var(--border-color)'
+                      }}>
+                        {loan.treasurer_approved ? '✓' : '○'} Treasurer
+                      </span>
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        padding: '2px 10px',
+                        borderRadius: '20px',
+                        background: loan.chairperson_approved ? 'var(--green-100, #dcfce7)' : 'var(--bg-card)',
+                        color: loan.chairperson_approved ? 'var(--green-700, #15803d)' : 'var(--text-muted)',
+                        border: '1px solid',
+                        borderColor: loan.chairperson_approved ? 'var(--green-300, #86efac)' : 'var(--border-color)'
+                      }}>
+                        {loan.chairperson_approved ? '✓' : '○'} Chairperson
+                      </span>
+                    </div>
+                  )}
+
                   {loan.status === 'approved' && (
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', marginBottom: '12px' }}>
-                      <div className="form-group" style={{ margin: '0' }}>
-                        <label>Repayment Amount (K)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          placeholder="Enter amount"
-                          value={repaymentData[loan.id] || ''}
-                          onChange={(e) => handleRepaymentChange(loan.id, e.target.value)}
-                          style={{ width: '160px', padding: '8px 12px', border: '1px solid #cbd5e0', borderRadius: '8px', fontSize: '14px' }}
-                        />
-                      </div>
+                    <div style={{ marginBottom: '12px' }}>
                       <button
                         className="btn btn-primary"
-                        style={{ width: 'auto', padding: '8px 16px', fontSize: '13px', marginTop: '0' }}
-                        disabled={repaying === loan.id}
-                        onClick={() => handleRepayment(loan.id)}
+                        style={{ width: 'auto', padding: '8px 18px', fontSize: '13px' }}
+                        onClick={() => setRepayingLoan(loan)}
                       >
-                        {repaying === loan.id ? 'Processing...' : 'Make Repayment'}
+                        Make Repayment
                       </button>
                     </div>
                   )}
@@ -252,6 +262,14 @@ function MemberLoans() {
           </div>
         )}
       </div>
+
+      {repayingLoan && (
+        <RepaymentModal
+          loan={repayingLoan}
+          onClose={() => setRepayingLoan(null)}
+          onSuccess={handleRepaymentSuccess}
+        />
+      )}
     </DashboardLayout>
   )
 }

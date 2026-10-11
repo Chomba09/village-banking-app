@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { Copy, Mail, Phone, UserX, Trash2 } from 'lucide-react'
+import { Copy, Mail, Phone, UserX, Trash2, Crown, ShieldOff } from 'lucide-react'
 
 function TreasurerGroupMembers() {
   const { groupId } = useParams()
@@ -13,6 +13,8 @@ function TreasurerGroupMembers() {
   const [copied, setCopied] = useState(false)
   const [updating, setUpdating] = useState(null)
   const [confirmRemove, setConfirmRemove] = useState(null)
+  const [confirmChairperson, setConfirmChairperson] = useState(null) // { member, action: 'assign' | 'remove' }
+  const [chairpersonMsg, setChairpersonMsg] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -87,6 +89,46 @@ function TreasurerGroupMembers() {
     }
   }
 
+  const handleAssignChairperson = async () => {
+    if (!confirmChairperson) return
+    setUpdating('chairperson')
+    setChairpersonMsg('')
+    try {
+      await api.post(`/groups/${groupId}/assign-chairperson/`, {
+        user_id: confirmChairperson.member.user_id
+      })
+      setChairpersonMsg(`${confirmChairperson.member.username} has been appointed chairperson. They will need to log out and back in for the change to take effect.`)
+      // Refresh members to update badges
+      const membersRes = await api.get(`/groups/${groupId}/members/`)
+      setMembers(membersRes.data)
+      const groupRes = await api.get(`/groups/${groupId}/`)
+      setGroup(groupRes.data)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to assign chairperson.')
+    } finally {
+      setUpdating(null)
+      setConfirmChairperson(null)
+    }
+  }
+
+  const handleRemoveChairperson = async () => {
+    if (!confirmChairperson) return
+    setUpdating('chairperson')
+    setChairpersonMsg('')
+    try {
+      await api.post(`/groups/${groupId}/remove-chairperson/`)
+      setChairpersonMsg(`${confirmChairperson.member.username} has been removed as chairperson and reverted to a regular member.`)
+      const membersRes = await api.get(`/groups/${groupId}/members/`)
+      setMembers(membersRes.data)
+      const groupRes = await api.get(`/groups/${groupId}/`)
+      setGroup(groupRes.data)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to remove chairperson.')
+    } finally {
+      setUpdating(null)
+      setConfirmChairperson(null)
+    }
+  }
 
   if (loading) return <div className="loading">Loading members...</div>
 
@@ -123,6 +165,19 @@ function TreasurerGroupMembers() {
           {copied ? 'Copied!' : 'Copy Invite Link'}
         </button>
       </div>
+
+      {/* Chairperson success message */}
+      {chairpersonMsg && (
+        <div className="alert alert-success" style={{ marginBottom: '16px' }}>
+          {chairpersonMsg}
+          <button
+            style={{ marginLeft: '12px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', color: 'inherit' }}
+            onClick={() => setChairpersonMsg('')}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Confirm remove modal */}
       {confirmRemove && (
@@ -182,6 +237,79 @@ function TreasurerGroupMembers() {
         </div>
       )}
 
+      {/* Confirm chairperson action modal */}
+      {confirmChairperson && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 500,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '32px',
+            maxWidth: '420px',
+            width: '100%',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            {confirmChairperson.action === 'assign' ? (
+              <>
+                <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
+                  Appoint Chairperson
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.6' }}>
+                  Are you sure you want to make <strong>{confirmChairperson.member.username}</strong> the chairperson of this group?
+                </p>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', lineHeight: '1.6' }}>
+                  Any existing chairperson will be reverted to a regular member. The new chairperson will need to log out and back in for their dashboard to update.
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    className="btn btn-primary"
+                    style={{ flex: 1, background: '#7c3aed', borderColor: '#7c3aed' }}
+                    disabled={updating === 'chairperson'}
+                    onClick={handleAssignChairperson}
+                  >
+                    {updating === 'chairperson' ? 'Appointing...' : 'Yes, Appoint'}
+                  </button>
+                  <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmChairperson(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
+                  Remove Chairperson
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
+                  Are you sure you want to remove <strong>{confirmChairperson.member.username}</strong> as chairperson?
+                  They will revert to a regular member role.
+                </p>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button
+                    className="btn btn-danger"
+                    style={{ flex: 1 }}
+                    disabled={updating === 'chairperson'}
+                    onClick={handleRemoveChairperson}
+                  >
+                    {updating === 'chairperson' ? 'Removing...' : 'Yes, Remove'}
+                  </button>
+                  <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setConfirmChairperson(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Active members */}
       <div className="table-card" style={{ marginBottom: '24px' }}>
         <div className="table-card-header">
@@ -199,7 +327,7 @@ function TreasurerGroupMembers() {
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Joined</th>
-                <th>Action</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -213,7 +341,19 @@ function TreasurerGroupMembers() {
                     {member.is_treasurer && (
                       <span className="badge badge-treasurer" style={{ marginLeft: '6px' }}>Treasurer</span>
                     )}
-
+                    {member.is_chairperson && (
+                      <span className="badge" style={{
+                        marginLeft: '6px',
+                        background: '#ede9fe',
+                        color: '#6d28d9',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                      }}>
+                        Chairperson
+                      </span>
+                    )}
                   </td>
                   <td>{member.username}</td>
                   <td>
@@ -232,8 +372,9 @@ function TreasurerGroupMembers() {
                     {new Date(member.date_joined).toLocaleDateString()}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {!member.is_treasurer && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {/* Mark inactive — not available for treasurer */}
+                      {!member.is_treasurer && !member.is_chairperson && (
                         <button
                           className="btn btn-sm"
                           style={{
@@ -251,6 +392,40 @@ function TreasurerGroupMembers() {
                         </button>
                       )}
 
+                      {/* Chairperson actions — not available for treasurer */}
+                      {!member.is_treasurer && (
+                        member.is_chairperson ? (
+                          <button
+                            className="btn btn-sm"
+                            style={{
+                              background: '#ede9fe',
+                              color: '#6d28d9',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                            onClick={() => setConfirmChairperson({ member, action: 'remove' })}
+                          >
+                            <ShieldOff size={13} />
+                            Remove Chair
+                          </button>
+                        ) : (
+                          <button
+                            className="btn btn-sm"
+                            style={{
+                              background: '#f5f3ff',
+                              color: '#7c3aed',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px'
+                            }}
+                            onClick={() => setConfirmChairperson({ member, action: 'assign' })}
+                          >
+                            <Crown size={13} />
+                            Make Chair
+                          </button>
+                        )
+                      )}
                     </div>
                   </td>
                 </tr>

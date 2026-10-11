@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
+import RepaymentModal from '../components/RepaymentModal'
 import api from '../api/axios'
 
 function TreasurerMyLoans() {
@@ -9,12 +10,9 @@ function TreasurerMyLoans() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [repaymentData, setRepaymentData] = useState({})
-  const [repaying, setRepaying] = useState(null)
+  const [repayingLoan, setRepayingLoan] = useState(null)
 
-  useEffect(() => {
-    fetchLoans()
-  }, [])
+  useEffect(() => { fetchLoans() }, [])
 
   const fetchLoans = async () => {
     try {
@@ -24,36 +22,6 @@ function TreasurerMyLoans() {
       setError('Failed to load loans.')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleRepaymentChange = (loanId, value) => {
-    setRepaymentData({ ...repaymentData, [loanId]: value })
-  }
-
-  const handleRepayment = async (loanId) => {
-    if (!repaymentData[loanId]) {
-      alert('Please enter a repayment amount.')
-      return
-    }
-    setRepaying(loanId)
-    setError('')
-    setSuccess('')
-    try {
-      await api.post('/loans/repay/', {
-        loan: loanId,
-        amount: repaymentData[loanId],
-      })
-      setSuccess('Repayment submitted successfully.')
-      setRepaymentData({ ...repaymentData, [loanId]: '' })
-      fetchLoans()
-    } catch (err) {
-      setError(
-        err.response?.data?.non_field_errors?.[0] ||
-        'Failed to submit repayment.'
-      )
-    } finally {
-      setRepaying(null)
     }
   }
 
@@ -80,10 +48,9 @@ function TreasurerMyLoans() {
       >
         ← Back to Group
       </button>
+
       <h1 className="dashboard-title">My Loans</h1>
-      <p className="dashboard-subtitle">
-        Your personal loan requests and repayment history.
-      </p>
+      <p className="dashboard-subtitle">Your personal loan requests and repayment history.</p>
 
       <div className="stats-grid" style={{ marginBottom: '24px' }}>
         <div className="stat-card">
@@ -116,14 +83,15 @@ function TreasurerMyLoans() {
           {loans.map(loan => (
             <div key={loan.id} className="table-card">
               <div className="table-card-header" style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 <span>Loan #{loan.id} — {loan.group_name}</span>
-                <span className={`badge badge-${loan.status}`}>
-                  {loan.status}
-                </span>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span className={`badge badge-${loan.status}`}>{loan.status}</span>
+                  {loan.is_overdue && (
+                    <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c' }}>OVERDUE</span>
+                  )}
+                </div>
               </div>
 
               <div style={{ padding: '16px' }}>
@@ -150,14 +118,23 @@ function TreasurerMyLoans() {
                     <div className="stat-card-title">Balance Remaining</div>
                     <div className="stat-card-value" style={{
                       fontSize: '18px',
-                      color: Number(loan.balance_remaining) > 0
-                        ? 'var(--crimson-500)'
-                        : '#4a8c55'
+                      color: Number(loan.balance_remaining) > 0 ? 'var(--crimson-500)' : '#4a8c55'
                     }}>
                       K{Number(loan.balance_remaining).toFixed(2)}
                     </div>
                   </div>
                 </div>
+
+                {loan.is_overdue && (
+                  <div style={{
+                    background: '#fee2e2', border: '1px solid #fca5a5',
+                    borderRadius: 'var(--radius-sm)', padding: '10px 14px',
+                    marginBottom: '12px', fontSize: '13px', color: '#b91c1c'
+                  }}>
+                    <strong>This loan is overdue.</strong> A penalty of K{Number(loan.penalty_amount).toFixed(2)} has been applied.
+                    Total amount now due: <strong>K{Number(loan.total_due_with_penalty).toFixed(2)}</strong>.
+                  </div>
+                )}
 
                 <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                   <strong>Purpose:</strong> {loan.purpose || '—'}
@@ -169,42 +146,14 @@ function TreasurerMyLoans() {
                   )}
                 </p>
 
-                {loan.status === 'approved' && (
-                  <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                    alignItems: 'flex-end',
-                    flexWrap: 'wrap',
-                    marginBottom: '12px'
-                  }}>
-                    <div className="form-group" style={{ margin: '0' }}>
-                      <label>Repayment Amount (K)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="Enter amount"
-                        value={repaymentData[loan.id] || ''}
-                        onChange={e => handleRepaymentChange(loan.id, e.target.value)}
-                        style={{
-                          width: '160px',
-                          padding: '8px 12px',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 'var(--radius-sm)',
-                          fontSize: '14px',
-                          background: 'var(--bg-primary)',
-                          color: 'var(--text-primary)'
-                        }}
-                      />
-                    </div>
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: 'auto', padding: '8px 16px', fontSize: '13px', marginTop: '0' }}
-                      disabled={repaying === loan.id}
-                      onClick={() => handleRepayment(loan.id)}
-                    >
-                      {repaying === loan.id ? 'Processing...' : 'Make Repayment'}
-                    </button>
-                  </div>
+                {loan.status === 'approved' && Number(loan.balance_remaining) > 0 && (
+                  <button
+                    className="btn btn-primary"
+                    style={{ width: 'auto', padding: '8px 20px', fontSize: '14px', marginBottom: '12px' }}
+                    onClick={() => setRepayingLoan(loan)}
+                  >
+                    Make Repayment
+                  </button>
                 )}
 
                 {loan.repayments && loan.repayments.length > 0 && (
@@ -236,6 +185,18 @@ function TreasurerMyLoans() {
             </div>
           ))}
         </div>
+      )}
+
+      {repayingLoan && (
+        <RepaymentModal
+          loan={repayingLoan}
+          onClose={() => setRepayingLoan(null)}
+          onSuccess={() => {
+            setRepayingLoan(null)
+            setSuccess('Repayment submitted successfully!')
+            fetchLoans()
+          }}
+        />
       )}
     </DashboardLayout>
   )

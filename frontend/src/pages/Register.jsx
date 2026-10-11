@@ -1,6 +1,33 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Eye, EyeOff } from 'lucide-react'
 import api from '../api/axios'
+
+// Extracts the first meaningful error message from a DRF error response.
+// DRF can return errors as:
+//   { field: ["message"] }  OR  { detail: "message" }  OR  { non_field_errors: ["msg"] }
+function parseApiError(err, fallback = 'Something went wrong. Please try again.') {
+  const data = err.response?.data
+  if (!data) return fallback
+  if (typeof data === 'string') return data
+
+  // non_field_errors first, then each field in order
+  const order = ['non_field_errors', 'detail', 'username', 'email', 'password', 'phone_number', 'role']
+  for (const key of order) {
+    if (data[key]) {
+      const val = data[key]
+      return Array.isArray(val) ? val[0] : String(val)
+    }
+  }
+  // Any remaining field
+  for (const key of Object.keys(data)) {
+    const val = data[key]
+    const msg = Array.isArray(val) ? val[0] : String(val)
+    // Prefix with the field name so the user knows which field is the problem
+    return `${key.replace(/_/g, ' ')}: ${msg}`
+  }
+  return fallback
+}
 
 function Register() {
   const navigate = useNavigate()
@@ -13,6 +40,9 @@ function Register() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -20,18 +50,32 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters.')
+      return
+    }
+    if (formData.password !== confirmPassword) {
+      setError('Passwords do not match. Please re-enter them.')
+      return
+    }
     setLoading(true)
     setError('')
     try {
       await api.post('/accounts/register/', formData)
       navigate('/login')
     } catch (err) {
-      setError(
-        err.response?.data?.username?.[0] || 'Registration failed. Please try again.'
-      )
+      setError(parseApiError(err, 'Registration failed. Please check your details and try again.'))
     } finally {
       setLoading(false)
     }
+  }
+
+  const inputWrap = { position: 'relative' }
+  const eyeBtn = {
+    position: 'absolute', right: '10px', top: '50%',
+    transform: 'translateY(-50%)', background: 'none',
+    border: 'none', cursor: 'pointer', padding: '4px',
+    color: 'var(--text-muted)', display: 'flex', alignItems: 'center'
   }
 
   return (
@@ -93,14 +137,64 @@ function Register() {
             </div>
             <div className="form-group">
               <label>Password</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Minimum 8 characters"
-                required
-              />
+              <div style={inputWrap}>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Minimum 8 characters"
+                  required
+                  style={{ paddingRight: '38px' }}
+                />
+                <button
+                  type="button"
+                  style={eyeBtn}
+                  onClick={() => setShowPassword(v => !v)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {formData.password.length > 0 && formData.password.length < 8 && (
+                <p style={{ fontSize: '12px', color: '#b91c1c', marginTop: '4px' }}>
+                  Password must be at least 8 characters.
+                </p>
+              )}
+            </div>
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <div style={inputWrap}>
+                <input
+                  type={showConfirm ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  required
+                  style={{ paddingRight: '38px' }}
+                />
+                <button
+                  type="button"
+                  style={eyeBtn}
+                  onClick={() => setShowConfirm(v => !v)}
+                  tabIndex={-1}
+                  aria-label={showConfirm ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {confirmPassword.length > 0 && confirmPassword !== formData.password && (
+                <p style={{ fontSize: '12px', color: '#b91c1c', marginTop: '4px' }}>
+                  Passwords do not match.
+                </p>
+              )}
+              {confirmPassword.length > 0 && confirmPassword === formData.password && formData.password.length >= 8 && (
+                <p style={{ fontSize: '12px', color: '#16a34a', marginTop: '4px' }}>
+                  Passwords match ✓
+                </p>
+              )}
             </div>
             <div className="form-group">
               <label>Phone Number</label>

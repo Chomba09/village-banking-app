@@ -8,6 +8,8 @@ import {
   PiggyBank,
   HandCoins,
   FileText,
+  CheckSquare,
+  Users,
 } from 'lucide-react'
 
 function Sidebar({ collapsed, onToggle }) {
@@ -16,70 +18,41 @@ function Sidebar({ collapsed, onToggle }) {
   const role = localStorage.getItem('role')
 
   const treasurerLinks = [
-    {
-      icon: <LayoutDashboard size={18} />,
-      label: 'Dashboard',
-      path: '/treasurer/dashboard'
-    },
-    {
-      icon: <PiggyBank size={18} />,
-      label: 'Make Contribution',
-      path: '/treasurer/contribute'
-    },
-    {
-      icon: <HandCoins size={18} />,
-      label: 'Apply for Loan',
-      path: '/treasurer/apply-loan'
-    },
-    {
-      icon: <PlusCircle size={18} />,
-      label: 'Create Group',
-      path: '/treasurer/groups/create'
-    },
-    {
-      icon: <Bell size={18} />,
-      label: 'Notifications',
-      path: '/treasurer/notifications'
-    },
+    { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/treasurer/dashboard' },
+    { icon: <PiggyBank size={18} />, label: 'Make Contribution', path: '/treasurer/contribute' },
+    { icon: <HandCoins size={18} />, label: 'Apply for Loan', path: '/treasurer/apply-loan' },
+    { icon: <PlusCircle size={18} />, label: 'Create Group', path: '/treasurer/groups/create' },
+    { icon: <Bell size={18} />, label: 'Notifications', path: '/treasurer/notifications' },
   ]
 
   const memberLinks = [
-    {
-      icon: <LayoutDashboard size={18} />,
-      label: 'Dashboard',
-      path: '/member/dashboard'
-    },
-    {
-      icon: <PiggyBank size={18} />,
-      label: 'Make Contribution',
-      path: '/member/contribute'
-    },
-    {
-      icon: <HandCoins size={18} />,
-      label: 'Apply for Loan',
-      path: '/member/apply-loan'
-    },
-    {
-      icon: <FileText size={18} />,
-      label: 'Notices',
-      path: '/member/notices'
-    },
-    {
-      icon: <ClipboardList size={18} />,
-      label: 'Transactions',
-      path: '/member/transactions'
-    },
+    { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/member/dashboard' },
+    { icon: <PiggyBank size={18} />, label: 'Make Contribution', path: '/member/contribute' },
+    { icon: <HandCoins size={18} />, label: 'Apply for Loan', path: '/member/apply-loan' },
+    { icon: <FileText size={18} />, label: 'Notices', path: '/member/notices' },
+    { icon: <ClipboardList size={18} />, label: 'Transactions', path: '/member/transactions' },
   ]
 
-  const links = role === 'treasurer' ? treasurerLinks : memberLinks
+  const chairpersonLinks = [
+    { icon: <LayoutDashboard size={18} />, label: 'Dashboard', path: '/chairperson/dashboard' },
+    { icon: <CheckSquare size={18} />, label: 'Loan Approvals', path: '/chairperson/approvals' },
+    { icon: <PiggyBank size={18} />, label: 'Make Contribution', path: '/chairperson/contribute' },
+    { icon: <HandCoins size={18} />, label: 'Apply for Loan', path: '/chairperson/apply-loan' },
+    { icon: <FileText size={18} />, label: 'Notices', path: '/chairperson/notices' },
+    { icon: <ClipboardList size={18} />, label: 'Transactions', path: '/chairperson/transactions' },
+    { icon: <Bell size={18} />, label: 'Notifications', path: '/chairperson/notifications' },
+  ]
+
+  const links =
+    role === 'treasurer'
+      ? treasurerLinks
+      : role === 'chairperson'
+      ? chairpersonLinks
+      : memberLinks
 
   const handleLogout = () => {
     localStorage.clear()
     navigate('/login')
-  }
-
-  const handleNavClick = (link) => {
-    navigate(link.path)
   }
 
   return (
@@ -102,7 +75,7 @@ function Sidebar({ collapsed, onToggle }) {
           <button
             key={link.label}
             className={`sidebar-nav-item ${location.pathname === link.path ? 'active' : ''}`}
-            onClick={() => handleNavClick(link)}
+            onClick={() => navigate(link.path)}
             title={collapsed ? link.label : ''}
           >
             <span className="nav-icon">{link.icon}</span>

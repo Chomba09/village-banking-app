@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
 import {
   Users, PiggyBank, HandCoins, AlertCircle,
-  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X, Trash2, FileText
+  CheckCircle2, Clock, Copy, RefreshCw, Bell, Plus, X, Trash2, FileText, TrendingDown
 } from 'lucide-react'
 
 function TreasurerGroupDetail() {
@@ -14,6 +14,8 @@ function TreasurerGroupDetail() {
   const [group, setGroup] = useState(null)
   const [dashboard, setDashboard] = useState(null)
   const [notices, setNotices] = useState([])
+  const [availability, setAvailability] = useState(null)
+  const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
@@ -24,11 +26,29 @@ function TreasurerGroupDetail() {
   const [noticeError, setNoticeError] = useState('')
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false)
   const [archiving, setArchiving] = useState(false)
-  
+
+  const fetchAvailability = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setAvailabilityLoading(true)
+    try {
+      const res = await api.get(`/groups/${groupId}/loan-availability/`)
+      setAvailability(res.data)
+    } catch {
+      // silently ignore — panel simply won't show if endpoint unavailable
+    } finally {
+      if (showSpinner) setAvailabilityLoading(false)
+    }
+  }, [groupId])
 
   useEffect(() => {
     fetchData()
   }, [groupId])
+
+  // Auto-refresh availability every 30 seconds
+  useEffect(() => {
+    fetchAvailability()
+    const interval = setInterval(() => fetchAvailability(), 30000)
+    return () => clearInterval(interval)
+  }, [fetchAvailability])
 
   const fetchData = async () => {
     try {
@@ -57,16 +77,16 @@ function TreasurerGroupDetail() {
   }
 
   const handleArchive = async () => {
-  setArchiving(true)
-  try {
-    await api.post(`/groups/${groupId}/archive/`)
-    navigate('/treasurer/dashboard')
-  } catch (err) {
-    alert('Failed to archive group.')
-  } finally {
-    setArchiving(false)
+    setArchiving(true)
+    try {
+      await api.post(`/groups/${groupId}/archive/`)
+      navigate('/treasurer/dashboard')
+    } catch (err) {
+      alert('Failed to archive group.')
+    } finally {
+      setArchiving(false)
+    }
   }
-}
 
   const handleNoticeChange = (e) => {
     setNoticeForm({ ...noticeForm, [e.target.name]: e.target.value })
@@ -100,6 +120,14 @@ function TreasurerGroupDetail() {
 
   const cycle = group.active_cycle
 
+  // Pool maths for the progress bar
+  const poolTotal = availability
+    ? Number(availability.total_savings) * (Number(availability.max_loan_percentage) / 100)
+    : 0
+  const poolUsed = availability ? Number(availability.outstanding_loans) : 0
+  const poolAvailable = availability ? Number(availability.available_amount) : 0
+  const poolPct = poolTotal > 0 ? Math.min(100, (poolUsed / poolTotal) * 100) : 0
+
   return (
     <DashboardLayout title={group.name}>
       <button className="back-btn" onClick={() => navigate('/treasurer/dashboard')}>
@@ -108,55 +136,26 @@ function TreasurerGroupDetail() {
 
       {showArchiveConfirm && (
         <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.5)',
-          zIndex: 500,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px'
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          zIndex: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
         }}>
           <div style={{
-            background: 'var(--bg-card)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '32px',
-            maxWidth: '420px',
-            width: '100%',
-            boxShadow: 'var(--shadow-lg)'
+            background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)',
+            padding: '32px', maxWidth: '420px', width: '100%', boxShadow: 'var(--shadow-lg)'
           }}>
-            <h3 style={{
-              fontSize: '17px',
-              fontWeight: '700',
-              color: 'var(--text-primary)',
-              marginBottom: '10px'
-            }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px' }}>
               Archive Group
             </h3>
-            <p style={{
-              fontSize: '14px',
-              color: 'var(--text-secondary)',
-              marginBottom: '24px',
-              lineHeight: '1.6'
-            }}>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '24px', lineHeight: '1.6' }}>
               Are you sure you want to archive <strong>{group?.name}</strong>?
               All members will be notified that the group has been closed.
               All financial records will be preserved for future reference.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                className="btn btn-danger"
-                style={{ flex: 1 }}
-                disabled={archiving}
-                onClick={handleArchive}
-              >
+              <button className="btn btn-danger" style={{ flex: 1 }} disabled={archiving} onClick={handleArchive}>
                 {archiving ? 'Archiving...' : 'Yes, Archive Group'}
               </button>
-              <button
-                className="btn btn-ghost"
-                style={{ flex: 1 }}
-                onClick={() => setShowArchiveConfirm(false)}
-              >
+              <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowArchiveConfirm(false)}>
                 Cancel
               </button>
             </div>
@@ -167,45 +166,33 @@ function TreasurerGroupDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
         <div>
           <h1 className="dashboard-title">{group.name}</h1>
-          {group.description && (
-            <p className="dashboard-subtitle">{group.description}</p>
-          )}
+          {group.description && <p className="dashboard-subtitle">{group.description}</p>}
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button
-            className="btn btn-ghost btn-sm"
-            onClick={handleCopy}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
+          <button className="btn btn-ghost btn-sm" onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Copy size={14} />
             {copied ? 'Copied!' : 'Copy Invite Link'}
           </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => navigate(`/treasurer/groups/${groupId}/new-cycle`)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
+          <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/treasurer/groups/${groupId}/new-cycle`)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <RefreshCw size={14} />
             New Cycle
           </button>
           <button
-            className="btn btn-ghost btn-sm"
             onClick={() => navigate(`/treasurer/groups/${groupId}/cycle-report`)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-primary)', color: 'white',
+              border: 'none', cursor: 'pointer', fontWeight: '600',
+              fontSize: '13px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+            }}
           >
-            <FileText size={14} />
-            Cycle Report
+            <FileText size={15} />
+            View Cycle Report
           </button>
           <button
             className="btn btn-sm"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: 'var(--crimson-100)',
-              color: 'var(--crimson-500)',
-              border: 'none'
-            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--crimson-100)', color: 'var(--crimson-500)', border: 'none' }}
             onClick={() => setShowArchiveConfirm(true)}
           >
             <Trash2 size={14} />
@@ -213,6 +200,141 @@ function TreasurerGroupDetail() {
           </button>
         </div>
       </div>
+
+      {/* ── Loan Pool Availability ── */}
+      {availability && (
+        <div style={{
+          marginBottom: '24px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-color)',
+          background: 'var(--bg-card)',
+          overflow: 'hidden'
+        }}>
+          {/* Header bar */}
+          <div style={{
+            padding: '14px 20px',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(135deg, var(--accent-primary) 0%, #7c3aed 100%)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingDown size={16} color="white" />
+              <span style={{ fontWeight: '700', fontSize: '14px', color: 'white', letterSpacing: '0.3px' }}>
+                Loan Pool — Available Funds
+              </span>
+            </div>
+            <button
+              onClick={() => fetchAvailability(true)}
+              disabled={availabilityLoading}
+              style={{
+                background: 'rgba(255,255,255,0.2)', border: 'none',
+                borderRadius: '6px', padding: '5px 10px',
+                cursor: availabilityLoading ? 'not-allowed' : 'pointer',
+                color: 'white', fontSize: '12px',
+                display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '600'
+              }}
+            >
+              <RefreshCw
+                size={12}
+                style={{
+                  animation: availabilityLoading ? 'spin 1s linear infinite' : 'none',
+                  display: 'inline-block'
+                }}
+              />
+              {availabilityLoading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+
+          {/* Four figures */}
+          <div style={{
+            padding: '20px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+            gap: '20px'
+          }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Total Savings
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                K{Number(availability.total_savings).toFixed(2)}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                confirmed contributions
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Max Lendable ({availability.max_loan_percentage}%)
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                K{poolTotal.toFixed(2)}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                savings × max loan %
+              </div>
+            </div>
+
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Loans Outstanding
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--crimson-500)' }}>
+                K{Number(availability.outstanding_loans).toFixed(2)}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                currently lent out
+              </div>
+            </div>
+
+            {/* Highlighted Available box */}
+            <div style={{
+              background: poolAvailable <= 0 ? 'rgba(220,38,38,0.08)' : 'rgba(74,140,85,0.1)',
+              borderRadius: 'var(--radius-md)',
+              padding: '14px',
+              border: `1px solid ${poolAvailable <= 0 ? 'rgba(220,38,38,0.2)' : 'rgba(74,140,85,0.25)'}`
+            }}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
+                Available to Borrow
+              </div>
+              <div style={{ fontSize: '26px', fontWeight: '900', color: poolAvailable <= 0 ? 'var(--crimson-500)' : '#2d7a3a' }}>
+                K{poolAvailable.toFixed(2)}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {poolAvailable <= 0 ? 'pool fully exhausted' : 'ready to lend out'}
+              </div>
+            </div>
+          </div>
+
+          {/* Pool usage bar */}
+          <div style={{ padding: '0 20px 18px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Pool usage</span>
+              <span style={{
+                fontSize: '12px', fontWeight: '700',
+                color: poolPct >= 90 ? 'var(--crimson-500)' : 'var(--text-secondary)'
+              }}>
+                {poolPct.toFixed(1)}% used
+              </span>
+            </div>
+            <div style={{ height: '8px', background: 'var(--bg-primary)', borderRadius: '99px', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%',
+                width: `${poolPct}%`,
+                borderRadius: '99px',
+                background: poolPct >= 90 ? 'var(--crimson-500)' : poolPct >= 65 ? 'var(--yellow-500)' : 'var(--accent-primary)',
+                transition: 'width 0.6s ease'
+              }} />
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+              Updates automatically every 30 seconds as loans are issued and repaid.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Cycle Info */}
       {cycle && (
@@ -247,11 +369,7 @@ function TreasurerGroupDetail() {
       {/* Clickable Stats */}
       {dashboard && (
         <div className="stats-grid" style={{ marginBottom: '24px' }}>
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid var(--accent-primary)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/contributions`)}
-          >
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid var(--accent-primary)' }} onClick={() => navigate(`/treasurer/groups/${groupId}/contributions`)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <PiggyBank size={16} color="var(--accent-primary)" />
               <div className="stat-card-title" style={{ margin: 0 }}>Total Savings</div>
@@ -260,106 +378,69 @@ function TreasurerGroupDetail() {
             <div style={{ fontSize: '11px', color: 'var(--accent-primary)', marginTop: '6px' }}>View contributions →</div>
           </div>
 
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid var(--accent-secondary)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=approved`)}
-          >
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid var(--accent-secondary)' }} onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=approved`)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <HandCoins size={16} color="var(--accent-secondary)" />
               <div className="stat-card-title" style={{ margin: 0 }}>Loans Issued</div>
             </div>
-            <div className="stat-card-value" style={{ color: 'var(--accent-secondary)' }}>
-              K{Number(dashboard.total_loans_issued).toFixed(2)}
-            </div>
+            <div className="stat-card-value" style={{ color: 'var(--accent-secondary)' }}>K{Number(dashboard.total_loans_issued).toFixed(2)}</div>
             <div style={{ fontSize: '11px', color: 'var(--accent-secondary)', marginTop: '6px' }}>View loans →</div>
           </div>
 
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid var(--crimson-500)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=outstanding`)}
-          >
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid var(--crimson-500)' }} onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=outstanding`)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <AlertCircle size={16} color="var(--crimson-500)" />
               <div className="stat-card-title" style={{ margin: 0 }}>Outstanding Balance</div>
             </div>
-            <div className="stat-card-value" style={{ color: 'var(--crimson-500)' }}>
-              K{Number(dashboard.outstanding_balance).toFixed(2)}
-            </div>
+            <div className="stat-card-value" style={{ color: 'var(--crimson-500)' }}>K{Number(dashboard.outstanding_balance).toFixed(2)}</div>
             <div style={{ fontSize: '11px', color: 'var(--crimson-500)', marginTop: '6px' }}>View details →</div>
           </div>
 
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid var(--yellow-500)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=pending`)}
-          >
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid var(--yellow-500)' }} onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=pending`)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <Clock size={16} color="var(--yellow-700)" />
               <div className="stat-card-title" style={{ margin: 0 }}>Pending Loan Requests</div>
             </div>
-            <div className="stat-card-value" style={{ color: 'var(--yellow-700)' }}>
-              {dashboard.pending_loan_applications}
-            </div>
+            <div className="stat-card-value" style={{ color: 'var(--yellow-700)' }}>{dashboard.pending_loan_applications}</div>
             <div style={{ fontSize: '11px', color: 'var(--yellow-700)', marginTop: '6px' }}>Review requests →</div>
           </div>
 
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid #4a8c55' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=repaid`)}
-          >
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid #4a8c55' }} onClick={() => navigate(`/treasurer/groups/${groupId}/loans?filter=repaid`)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <CheckCircle2 size={16} color="#4a8c55" />
               <div className="stat-card-title" style={{ margin: 0 }}>Total Repaid</div>
             </div>
-            <div className="stat-card-value" style={{ color: '#4a8c55' }}>
-              K{Number(dashboard.total_repaid).toFixed(2)}
-            </div>
+            <div className="stat-card-value" style={{ color: '#4a8c55' }}>K{Number(dashboard.total_repaid).toFixed(2)}</div>
             <div style={{ fontSize: '11px', color: '#4a8c55', marginTop: '6px' }}>View repayments →</div>
+          </div>
+
+          <div className="stat-card" style={{ cursor: 'pointer', borderLeft: '3px solid var(--purple-600)' }} onClick={() => navigate(`/treasurer/groups/${groupId}/members`)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <Users size={16} color="var(--purple-600)" />
+              <div className="stat-card-title" style={{ margin: 0 }}>Members</div>
+            </div>
+            <div className="stat-card-value" style={{ color: 'var(--purple-600)' }}>{dashboard.members_count}</div>
+            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>View members →</div>
           </div>
 
           <div
             className="stat-card"
             style={{ cursor: 'pointer', borderLeft: '3px solid var(--purple-600)' }}
-            onClick={() => navigate(`/treasurer/groups/${groupId}/members`)}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <Users size={16} color="var(--purple-600)" />
-              <div className="stat-card-title" style={{ margin: 0 }}>Members</div>
-            </div>
-            <div className="stat-card-value" style={{ color: 'var(--purple-600)' }}>
-              {dashboard.members_count}
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>View members →</div>
-          </div>
-          <div
-            className="stat-card"
-            style={{ cursor: 'pointer', borderLeft: '3px solid var(--purple-600)' }}
-            onClick={() => navigate(
-              role === 'treasurer'
-                ? `/treasurer/groups/${groupId}/activity`
-                : `/member/groups/${groupId}/activity`
-            )}
+            onClick={() => navigate(role === 'treasurer' ? `/treasurer/groups/${groupId}/activity` : `/member/groups/${groupId}/activity`)}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <Users size={16} color="var(--purple-600)" />
               <div className="stat-card-title" style={{ margin: 0 }}>Group Activity</div>
             </div>
-            <div className="stat-card-value" style={{ fontSize: '14px', color: 'var(--purple-600)' }}>
-              View all
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>
-              Contributions & loans →
-            </div>
+            <div className="stat-card-value" style={{ fontSize: '14px', color: 'var(--purple-600)' }}>View all</div>
+            <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>Contributions & loans →</div>
           </div>
         </div>
       )}
 
-      {/* My Contributions & My Loans — treasurer's own records for this group */}
+      {/* My Contributions & My Loans */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <div className="table-card" style={{ cursor: 'pointer' }}>
+        <div className="table-card">
           <div className="table-card-header" style={{ borderBottom: '2px solid var(--accent-primary)' }}>
             <PiggyBank size={15} style={{ marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-primary)' }} />
             My Contributions
@@ -369,24 +450,17 @@ function TreasurerGroupDetail() {
               View your personal savings contributions for this group.
             </p>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => navigate('/treasurer/my-contributions')}
-              >
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/treasurer/my-contributions')}>
                 View My Contributions
               </button>
-              <button
-                className="btn btn-sm"
-                style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}
-                onClick={() => navigate('/treasurer/contribute')}
-              >
+              <button className="btn btn-sm" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }} onClick={() => navigate('/treasurer/contribute')}>
                 Make Contribution
               </button>
             </div>
           </div>
         </div>
 
-        <div className="table-card" style={{ cursor: 'pointer' }}>
+        <div className="table-card">
           <div className="table-card-header" style={{ borderBottom: '2px solid var(--accent-secondary)' }}>
             <HandCoins size={15} style={{ marginRight: '6px', verticalAlign: 'middle', color: 'var(--accent-secondary)' }} />
             My Loans
@@ -395,11 +469,7 @@ function TreasurerGroupDetail() {
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '14px' }}>
               Track your personal loan applications and repayments for this group.
             </p>
-            <button
-              className="btn btn-sm"
-              style={{ background: 'var(--accent-secondary)', color: 'white', border: 'none' }}
-              onClick={() => navigate('/treasurer/my-loans')}
-            >
+            <button className="btn btn-sm" style={{ background: 'var(--accent-secondary)', color: 'white', border: 'none' }} onClick={() => navigate('/treasurer/my-loans')}>
               View My Loans
             </button>
           </div>
@@ -435,11 +505,7 @@ function TreasurerGroupDetail() {
             <Bell size={16} color="var(--accent-primary)" />
             <span>Group Notices ({notices.length})</span>
           </div>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowNoticeForm(!showNoticeForm)}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
+          <button className="btn btn-primary btn-sm" onClick={() => setShowNoticeForm(!showNoticeForm)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {showNoticeForm ? <X size={14} /> : <Plus size={14} />}
             {showNoticeForm ? 'Cancel' : 'Post Notice'}
           </button>
@@ -455,29 +521,26 @@ function TreasurerGroupDetail() {
                 <input
                   type="text"
                   name="title"
+                  className="form-control"
                   value={noticeForm.title}
                   onChange={handleNoticeChange}
-                  placeholder="e.g. Next Meeting — 15 September 2026"
                   required
+                  placeholder="e.g. Monthly meeting reminder"
                 />
               </div>
               <div className="form-group">
-                <label>Content *</label>
+                <label>Message *</label>
                 <textarea
                   name="content"
+                  className="form-control"
+                  rows={4}
                   value={noticeForm.content}
                   onChange={handleNoticeChange}
-                  placeholder="Write your notice here..."
-                  rows={4}
                   required
+                  placeholder="Write your notice here..."
                 />
               </div>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                style={{ width: 'auto', padding: '10px 24px' }}
-                disabled={postingNotice}
-              >
+              <button className="btn btn-primary" type="submit" disabled={postingNotice}>
                 {postingNotice ? 'Posting...' : 'Post Notice'}
               </button>
             </form>
@@ -485,7 +548,7 @@ function TreasurerGroupDetail() {
         )}
 
         {notices.length === 0 ? (
-          <div className="empty-state">No notices posted yet. Click Post Notice to add one.</div>
+          <div className="empty-state">No notices posted for this group yet.</div>
         ) : (
           notices.map((notice) => (
             <div key={notice.id} style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)' }}>

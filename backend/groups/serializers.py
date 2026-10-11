@@ -19,28 +19,38 @@ class CycleSerializer(serializers.ModelSerializer):
 class MemberSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True)
     member_id = serializers.CharField(source='user.member_id', read_only=True)
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
     role = serializers.CharField(source='user.role', read_only=True)
     phone_number = serializers.CharField(source='user.phone_number', read_only=True)
     first_name = serializers.CharField(source='user.first_name', read_only=True)
     last_name = serializers.CharField(source='user.last_name', read_only=True)
     is_treasurer = serializers.SerializerMethodField()
+    is_chairperson = serializers.SerializerMethodField()
 
     class Meta:
         model = Membership
         fields = [
-            'id', 'username', 'member_id', 'first_name', 'last_name',
+            'id', 'user_id', 'username', 'member_id', 'first_name', 'last_name',
             'email', 'phone_number', 'role', 'status', 'date_joined',
-            'is_treasurer'
+            'is_treasurer', 'is_chairperson'
         ]
 
     def get_is_treasurer(self, obj):
         return obj.group.treasurer_id == obj.user_id
 
+    def get_is_chairperson(self, obj):
+        return (
+            obj.group.chairperson_id is not None and
+            obj.group.chairperson_id == obj.user_id
+        )
+
 
 class GroupSerializer(serializers.ModelSerializer):
     treasurer = serializers.StringRelatedField(read_only=True)
     treasurer_id = serializers.IntegerField(source='treasurer.id', read_only=True)
+    chairperson = serializers.StringRelatedField(read_only=True)
+    chairperson_id = serializers.IntegerField(source='chairperson.id', read_only=True, allow_null=True)
     members = MemberSerializer(source='memberships', many=True, read_only=True)
     invite_link = serializers.SerializerMethodField()
     active_cycle = CycleSerializer(read_only=True)
@@ -48,7 +58,9 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = [
-            'id', 'name', 'description', 'treasurer', 'treasurer_id',
+            'id', 'name', 'description',
+            'treasurer', 'treasurer_id',
+            'chairperson', 'chairperson_id',
             'invite_link', 'members', 'active_cycle',
             'contact_person', 'maximum_members',
             'minimum_contribution', 'maximum_contribution',
@@ -68,7 +80,7 @@ class GroupCreateSerializer(serializers.ModelSerializer):
     stop_saving_date = serializers.DateField(write_only=True)
     stop_borrowing_date = serializers.DateField(write_only=True)
     member_admission_deadline = serializers.DateField(write_only=True)
-    max_loan_percentage = serializers.DecimalField( max_digits=5, decimal_places=2, write_only=True, default=80.00)
+    max_loan_percentage = serializers.DecimalField(max_digits=5, decimal_places=2, write_only=True, default=80.00)
     invite_link = serializers.SerializerMethodField()
     active_cycle = CycleSerializer(read_only=True)
 
