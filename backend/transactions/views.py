@@ -4,9 +4,7 @@ from rest_framework.views import APIView
 from .models import Transaction, MemberAccount
 from .serializers import (
     TransactionSerializer,
-    DepositWithdrawalSerializer,
     MemberAccountSerializer,
-    WithdrawalApprovalSerializer
 )
 from groups.models import Group
 
@@ -14,11 +12,6 @@ from groups.models import Group
 class IsTreasurer(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user.role == 'treasurer'
-
-
-class DepositWithdrawalView(generics.CreateAPIView):
-    serializer_class = DepositWithdrawalSerializer
-    permission_classes = [permissions.IsAuthenticated]
 
 
 class MemberTransactionListView(generics.ListAPIView):
@@ -61,24 +54,3 @@ class MemberAccountView(generics.RetrieveAPIView):
         return account
 
 
-class PendingWithdrawalListView(generics.ListAPIView):
-    serializer_class = TransactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTreasurer]
-
-    def get_queryset(self):
-        return Transaction.objects.filter(
-            transaction_type='withdrawal',
-            status='pending',
-            group__treasurer=self.request.user
-        )
-
-
-class WithdrawalApprovalView(generics.UpdateAPIView):
-    serializer_class = WithdrawalApprovalSerializer
-    permission_classes = [permissions.IsAuthenticated, IsTreasurer]
-
-    def get_queryset(self):
-        return Transaction.objects.filter(
-            transaction_type='withdrawal',
-            group__treasurer=self.request.user
-        )
