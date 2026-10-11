@@ -43,14 +43,7 @@ function Login() {
         navigate('/member/dashboard')
       }
     } catch (err) {
-      const data = err.response?.data
-      if (data?.detail) {
-        setError(data.detail)
-      } else if (data?.non_field_errors) {
-        setError(data.non_field_errors[0])
-      } else {
-        setError('Invalid username or password. Please try again.')
-      }
+      setError('Invalid username or password. Please try again.')
     } finally {
       setLoading(false)
     }
