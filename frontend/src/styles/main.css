@@ -914,24 +914,6 @@ tr:hover td { background: var(--bg-primary); }
   font-size: 14px;
 }
 
-/* ── Mobile hamburger button ── */
-.mobile-menu-btn {
-  display: none;
-  position: fixed;
-  top: 14px;
-  left: 14px;
-  z-index: 200;
-  background: var(--bg-sidebar);
-  color: var(--white);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 8px;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-md);
-}
-
 /* ── Sidebar overlay backdrop (mobile only) ── */
 .sidebar-overlay {
   display: none;
@@ -984,12 +966,17 @@ tr:hover td { background: var(--bg-primary); }
     margin-left: 0 !important;
   }
 
-  /* Topbar: leave room for hamburger button on the left */
+  /* Topbar: full width, no sidebar offset */
   .topbar {
-    padding: 0 16px 0 56px;
-    left: 0;
+    left: 0 !important;
     right: 0;
     width: 100%;
+    padding: 0 12px;
+  }
+
+  /* Hide search bar on mobile — too cramped */
+  .topbar-search {
+    display: none !important;
   }
 
   .dashboard-content { padding: 20px 16px; }
@@ -1002,11 +989,7 @@ tr:hover td { background: var(--bg-primary); }
 
   .profile-drawer { width: 100%; right: -100%; }
 
-  /* Show hamburger and close button on mobile */
-  .mobile-menu-btn {
-    display: flex;
-  }
-
+  /* Show close button inside sidebar on mobile */
   .sidebar-close-btn {
     display: flex;
   }
