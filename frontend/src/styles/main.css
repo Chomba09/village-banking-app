@@ -914,6 +914,43 @@ tr:hover td { background: var(--bg-primary); }
   font-size: 14px;
 }
 
+/* ── Mobile hamburger button ── */
+.mobile-menu-btn {
+  display: none;
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 200;
+  background: var(--bg-sidebar);
+  color: var(--white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+/* ── Sidebar overlay backdrop (mobile only) ── */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ── Sidebar close button (inside sidebar, mobile only) ── */
+.sidebar-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--white);
+  cursor: pointer;
+  margin-left: auto;
+  padding: 4px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .auth-left { display: none; }
@@ -922,8 +959,37 @@ tr:hover td { background: var(--bg-primary); }
     padding: 32px 24px;
   }
 
+  /* Sidebar slides off-screen; slides in when .mobile-open is added */
+  .sidebar {
+    transform: translateX(-100%);
+    width: var(--sidebar-width) !important;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Dim backdrop shown when sidebar is open */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
+
+  /* Main content fills the full width — no sidebar margin */
   .dashboard-main {
-    margin-left: var(--sidebar-collapsed-width);
+    margin-left: 0 !important;
+  }
+
+  /* Topbar: leave room for hamburger button on the left */
+  .topbar {
+    padding: 0 16px 0 56px;
+    left: 0;
+    right: 0;
+    width: 100%;
   }
 
   .dashboard-content { padding: 20px 16px; }
@@ -936,5 +1002,12 @@ tr:hover td { background: var(--bg-primary); }
 
   .profile-drawer { width: 100%; right: -100%; }
 
-  .topbar { padding: 0 16px 0 80px; }
+  /* Show hamburger and close button on mobile */
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
 }
