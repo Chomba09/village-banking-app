@@ -946,10 +946,19 @@ tr:hover td { background: var(--bg-primary); }
     transform: translateX(-100%);
     width: var(--sidebar-width) !important;
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Ensure footer (logout) sticks to bottom */
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
+  }
+
+  /* Nav takes remaining space so footer is pushed to bottom */
+  .sidebar .sidebar-nav {
+    flex: 1;
   }
 
   /* Dim backdrop shown when sidebar is open */

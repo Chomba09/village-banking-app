@@ -39,7 +39,7 @@ function DashboardLayout({ children, title }) {
   }, [collapsed])
 
   // On the topbar hamburger button:
-  // - mobile: toggle the slide-in overlay sidebar
+  // - mobile: toggle the slide-in overlay sidebar (always full/uncollapsed)
   // - desktop: collapse/expand as before
   const handleToggle = () => {
     if (isMobile()) {
@@ -48,6 +48,9 @@ function DashboardLayout({ children, title }) {
       setCollapsed(prev => !prev)
     }
   }
+
+  // On mobile the sidebar should never appear in icon-only (collapsed) mode
+  const sidebarCollapsed = isMobile() ? false : collapsed
 
   return (
     <div className="dashboard-layout">
@@ -61,7 +64,7 @@ function DashboardLayout({ children, title }) {
 
       <div ref={sidebarRef}>
         <Sidebar
-          collapsed={collapsed}
+          collapsed={sidebarCollapsed}
           mobileOpen={mobileOpen}
           onMobileClose={() => setMobileOpen(false)}
         />
