@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { Info } from 'lucide-react'
+import { Info, AlertTriangle } from 'lucide-react'
 
 function MemberApplyLoan() {
   const navigate = useNavigate()
@@ -44,14 +44,18 @@ function MemberApplyLoan() {
     if (e.target.name === 'amount') setError('')
   }
 
-  // Live inline hint shown beneath the amount field as user types
   const amountEntered = Number(formData.amount)
   const maxAvailable = availability ? Number(availability.available_amount) : null
   const amountExceedsPool = maxAvailable !== null && formData.amount !== '' && amountEntered > maxAvailable
   const amountBelowMin = formData.amount !== '' && amountEntered < 1
 
+  // Chairperson is required before any loan can proceed
+  const noChairperson = availability && availability.has_chairperson === false
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+
+    if (noChairperson) return   // button is disabled too, but guard here as well
 
     if (amountBelowMin) {
       setError('Please enter a loan amount of at least K1.')
@@ -76,6 +80,7 @@ function MemberApplyLoan() {
       setAvailability(null)
     } catch (err) {
       setError(
+        err.response?.data?.error ||
         err.response?.data?.non_field_errors?.[0] ||
         err.response?.data?.amount?.[0] ||
         'Failed to submit loan application.'
@@ -89,8 +94,8 @@ function MemberApplyLoan() {
 
   return (
     <DashboardLayout title="Apply for a Loan">
-      <button className="back-btn" onClick={() => navigate('/member/dashboard')}>
-        ← Back to Dashboard
+      <button className="back-btn" onClick={() => navigate(-1)}>
+        ← Back
       </button>
       <h1 className="dashboard-title">Apply for a Loan</h1>
       <p className="dashboard-subtitle">
@@ -98,8 +103,34 @@ function MemberApplyLoan() {
       </p>
 
       <div style={{ maxWidth: '520px' }}>
-        {/* Availability info card */}
-        {availability && (
+        {/* No-chairperson warning */}
+        {noChairperson && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            background: '#fffbeb',
+            border: '1px solid #fbbf24',
+            borderLeft: '4px solid #f59e0b',
+            borderRadius: 'var(--radius-md)',
+            padding: '16px 20px',
+            marginBottom: '20px',
+          }}>
+            <AlertTriangle size={18} color="#b45309" style={{ flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#92400e' }}>
+                No chairperson appointed
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#78350f', lineHeight: '1.6' }}>
+                This group does not have a chairperson yet. Loans cannot be applied for
+                until the treasurer appoints one. Please contact your group treasurer.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Availability info card — only shown when chairperson exists */}
+        {availability && !noChairperson && (
           <div style={{
             background: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
@@ -200,7 +231,7 @@ function MemberApplyLoan() {
             <div className="form-group">
               <label>
                 Amount (K) *
-                {availability && Number(availability.available_amount) > 0 && (
+                {availability && !noChairperson && Number(availability.available_amount) > 0 && (
                   <span style={{
                     fontSize: '12px',
                     color: 'var(--text-muted)',
@@ -219,8 +250,9 @@ function MemberApplyLoan() {
                 placeholder="Enter loan amount"
                 step="0.01"
                 min="1"
-                max={availability ? Number(availability.available_amount) : undefined}
+                max={availability && !noChairperson ? Number(availability.available_amount) : undefined}
                 required
+                disabled={noChairperson}
                 style={{ borderColor: amountExceedsPool ? '#b91c1c' : undefined }}
               />
               {amountExceedsPool && (
@@ -244,6 +276,7 @@ function MemberApplyLoan() {
                 placeholder="Briefly describe why you need this loan"
                 rows={3}
                 required
+                disabled={noChairperson}
               />
             </div>
 
@@ -262,8 +295,9 @@ function MemberApplyLoan() {
               className="btn btn-primary"
               disabled={
                 submitting ||
+                noChairperson ||
                 !availability ||
-                Number(availability.available_amount) === 0 ||
+                Number(availability?.available_amount) === 0 ||
                 amountExceedsPool
               }
             >

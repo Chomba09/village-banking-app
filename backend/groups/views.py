@@ -422,6 +422,7 @@ class LoanAvailabilityView(APIView):
             'total_pool': total_pool,
             'outstanding_loans': outstanding_loans,
             'available_amount': available_amount,
+            'has_chairperson': group.chairperson is not None,  # required for loan applications
         })
 
 

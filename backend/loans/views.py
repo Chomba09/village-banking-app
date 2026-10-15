@@ -29,29 +29,37 @@ def _maybe_finalise_loan(loan):
     Rules:
       - Treasurer's own loan  → chairperson must approve; treasurer cannot approve their own.
       - Chairperson's own loan → treasurer must approve; chairperson cannot approve their own.
-      - Member loan            → both treasurer AND chairperson must approve
-                                 (if each role exists in the group).
+      - Member loan            → both treasurer AND chairperson must approve.
+
+    A chairperson is always required — loans cannot be approved if the group
+    has no chairperson. This should be caught earlier (at application time and
+    at the treasurer-approval step), but this function also returns False safely
+    if called in that state.
 
     Returns True if the loan was finalised this call.
     """
     group = loan.group
     submitted_by = loan.member
 
+    # A chairperson must always exist — cannot finalise without one.
+    if group.chairperson is None:
+        return False
+
     is_treasurer_loan = group.treasurer is not None and submitted_by == group.treasurer
     is_chairperson_loan = group.chairperson is not None and submitted_by == group.chairperson
 
     if is_treasurer_loan:
-        # Only chairperson approval needed
+        # Treasurer's own loan — only chairperson approval needed.
         treasurer_done = True
-        chairperson_done = loan.chairperson_approved or group.chairperson is None
+        chairperson_done = loan.chairperson_approved
     elif is_chairperson_loan:
-        # Only treasurer approval needed
-        treasurer_done = loan.treasurer_approved or group.treasurer is None
+        # Chairperson's own loan — only treasurer approval needed.
+        treasurer_done = loan.treasurer_approved
         chairperson_done = True
     else:
-        # Regular member loan — both roles must sign off if they exist
-        treasurer_done = loan.treasurer_approved or group.treasurer is None
-        chairperson_done = loan.chairperson_approved or group.chairperson is None
+        # Regular member loan — both must approve.
+        treasurer_done = loan.treasurer_approved
+        chairperson_done = loan.chairperson_approved
 
     if treasurer_done and chairperson_done:
         from django.utils import timezone as tz
@@ -87,26 +95,37 @@ class LoanApplyView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        loan = serializer.save()
 
+        # Peek at the group before saving to enforce chairperson requirement.
+        group = serializer.validated_data.get('group')
+        if group and group.chairperson is None:
+            return Response(
+                {
+                    'error': (
+                        'This group does not have a chairperson. '
+                        'The treasurer must appoint a chairperson before any loans can be applied for.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        loan = serializer.save()
         group = loan.group
         applicant = request.user
 
         if loan.submitted_by_treasurer:
             # Treasurer's own loan — needs chairperson approval only.
-            # Treasurer is implicitly considered to have approved their own request,
-            # so mark that flag so _maybe_finalise_loan can skip them.
+            # Treasurer is implicitly considered to have approved their own request.
             loan.treasurer_approved = True
             loan.save()
 
-            # Notify chairperson they need to act
-            if group.chairperson:
-                send_notification(
-                    group.chairperson,
-                    f'The treasurer has applied for a loan of K{loan.amount} from {group.name}. '
-                    f'Your approval is required to release the funds.'
-                )
-            # Notify other members for transparency
+            # Notify chairperson they need to act.
+            send_notification(
+                group.chairperson,
+                f'The treasurer has applied for a loan of K{loan.amount} from {group.name}. '
+                f'Your approval is required to release the funds.'
+            )
+            # Notify other members for transparency.
             from groups.models import Membership
             members = Membership.objects.filter(
                 group=group, status='active'
@@ -120,31 +139,27 @@ class LoanApplyView(generics.CreateAPIView):
 
         elif applicant == group.chairperson:
             # Chairperson's own loan — needs treasurer approval only.
-            # Mark chairperson as having implicitly approved their own request.
             loan.chairperson_approved = True
             loan.save()
 
-            # Notify treasurer they need to act
-            if group.treasurer:
-                send_notification(
-                    group.treasurer,
-                    f'The chairperson has applied for a loan of K{loan.amount} from {group.name}. '
-                    f'Your approval is required to release the funds.'
-                )
+            send_notification(
+                group.treasurer,
+                f'The chairperson has applied for a loan of K{loan.amount} from {group.name}. '
+                f'Your approval is required to release the funds.'
+            )
 
         else:
-            # Regular member loan — notify both treasurer and chairperson
+            # Regular member loan — notify both treasurer and chairperson.
             if group.treasurer:
                 send_notification(
                     group.treasurer,
                     f'{applicant.username} has applied for a loan of K{loan.amount} from {group.name}.'
                 )
-            if group.chairperson and group.chairperson != applicant:
-                send_notification(
-                    group.chairperson,
-                    f'{applicant.username} has applied for a loan of K{loan.amount} from {group.name}. '
-                    f'Your approval will be required after the treasurer approves.'
-                )
+            send_notification(
+                group.chairperson,
+                f'{applicant.username} has applied for a loan of K{loan.amount} from {group.name}. '
+                f'Your approval will be required after the treasurer approves.'
+            )
 
         response_serializer = LoanSerializer(loan)
         return Response(
@@ -184,7 +199,7 @@ class LoanStatusUpdateView(generics.UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsTreasurer]
 
     def get_queryset(self):
-        # Exclude loans the treasurer themselves applied for
+        # Exclude loans the treasurer themselves applied for.
         return Loan.objects.filter(
             group__treasurer=self.request.user
         ).exclude(
@@ -210,6 +225,13 @@ class LoanStatusUpdateView(generics.UpdateAPIView):
             if not cycle:
                 return
 
+            # Block approval if group still has no chairperson.
+            if group.chairperson is None:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError(
+                    'This group has no chairperson. Appoint a chairperson before approving any loans.'
+                )
+
             loan.treasurer_approved = True
             loan.interest_rate = group.interest_rate
             loan.save()
@@ -217,14 +239,13 @@ class LoanStatusUpdateView(generics.UpdateAPIView):
             finalised = _maybe_finalise_loan(loan)
 
             if not finalised:
-                # Waiting for chairperson — notify them
-                if group.chairperson:
-                    send_notification(
-                        group.chairperson,
-                        f'The treasurer has approved {loan.member.username}\'s loan of K{loan.amount} '
-                        f'from {group.name}. Your approval is now required to release the funds.'
-                    )
-                # Let the member know it's partially approved
+                # Waiting for chairperson — notify them.
+                send_notification(
+                    group.chairperson,
+                    f'The treasurer has approved {loan.member.username}\'s loan of K{loan.amount} '
+                    f'from {group.name}. Your approval is now required to release the funds.'
+                )
+                # Let the member know it's partially approved.
                 send_notification(
                     loan.member,
                     f'The treasurer has approved your loan of K{loan.amount} from {group.name}. '
@@ -293,7 +314,7 @@ class ChairpersonLoanApprovalView(APIView):
             loan.save()
             _maybe_finalise_loan(loan)
 
-            # Notify treasurer of chairperson's decision
+            # Notify treasurer of chairperson's decision.
             if loan.group.treasurer:
                 send_notification(
                     loan.group.treasurer,

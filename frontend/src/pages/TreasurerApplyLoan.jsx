@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { Info } from 'lucide-react'
+import { Info, AlertTriangle } from 'lucide-react'
 
 function TreasurerApplyLoan() {
   const navigate = useNavigate()
@@ -44,8 +44,12 @@ function TreasurerApplyLoan() {
   const maxAvailable = availability ? Number(availability.available_amount) : null
   const amountExceedsPool = maxAvailable !== null && formData.amount !== '' && amountEntered > maxAvailable
 
+  // Chairperson is required before any loan can proceed
+  const noChairperson = availability && availability.has_chairperson === false
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (noChairperson) return   // belt-and-suspenders; button is also disabled
     if (amountExceedsPool) {
       setError(
         `The amount you entered (K${amountEntered.toFixed(2)}) exceeds the available pool. ` +
@@ -66,7 +70,8 @@ function TreasurerApplyLoan() {
       setAvailability(null)
     } catch (err) {
       const errData = err.response?.data
-      const msg = errData?.non_field_errors?.[0] ||
+      const msg = errData?.error ||
+        errData?.non_field_errors?.[0] ||
         errData?.amount?.[0] ||
         errData?.group?.[0] ||
         'Failed to submit loan application.'
@@ -89,7 +94,35 @@ function TreasurerApplyLoan() {
         as a treasurer loan request.
       </p>
 
-      {availability && (
+      {/* No-chairperson warning — shown as soon as a group without one is selected */}
+      {noChairperson && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '12px',
+          background: '#fffbeb',
+          border: '1px solid #fbbf24',
+          borderLeft: '4px solid #f59e0b',
+          borderRadius: 'var(--radius-md)',
+          padding: '16px 20px',
+          marginBottom: '20px',
+          maxWidth: '480px',
+        }}>
+          <AlertTriangle size={18} color="#b45309" style={{ flexShrink: 0, marginTop: '1px' }} />
+          <div>
+            <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#92400e' }}>
+              No chairperson appointed
+            </p>
+            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#78350f', lineHeight: '1.6' }}>
+              This group does not have a chairperson yet. Loans cannot be applied for
+              until a chairperson is appointed. Go to{' '}
+              <strong>Group Members</strong> to appoint one.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {availability && !noChairperson && (
         <div style={{
           background: 'var(--bg-card)',
           border: '1px solid var(--border-color)',
@@ -176,7 +209,7 @@ function TreasurerApplyLoan() {
           <div className="form-group">
             <label>
               Amount (K) *
-              {maxAvailable !== null && (
+              {maxAvailable !== null && !noChairperson && (
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400', marginLeft: '8px' }}>
                   Max available: K{maxAvailable.toFixed(2)}
                 </span>
@@ -192,6 +225,7 @@ function TreasurerApplyLoan() {
               min="1"
               max={maxAvailable || undefined}
               required
+              disabled={noChairperson}
               style={{ borderColor: amountExceedsPool ? '#b91c1c' : undefined }}
             />
             {amountExceedsPool && (
@@ -215,6 +249,7 @@ function TreasurerApplyLoan() {
               placeholder="Briefly describe why you need this loan"
               rows={3}
               required
+              disabled={noChairperson}
             />
           </div>
 
@@ -225,14 +260,14 @@ function TreasurerApplyLoan() {
             lineHeight: '1.6'
           }}>
             Since you are the treasurer, your loan request will need
-            to be self-approved. All members will be notified and
-            can see this request for full transparency.
+            to be approved by the chairperson. All members will be notified
+            for full transparency.
           </p>
 
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={submitting || amountExceedsPool}
+            disabled={submitting || amountExceedsPool || noChairperson}
           >
             {submitting ? 'Submitting...' : 'Submit Application'}
           </button>
