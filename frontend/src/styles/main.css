@@ -946,19 +946,26 @@ tr:hover td { background: var(--bg-primary); }
     transform: translateX(-100%);
     width: var(--sidebar-width) !important;
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    /* Ensure footer (logout) sticks to bottom */
     height: 100vh;
+    height: 100dvh; /* dynamic viewport height — accounts for browser chrome on phones */
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   .sidebar.mobile-open {
     transform: translateX(0);
   }
 
-  /* Nav takes remaining space so footer is pushed to bottom */
+  /* Nav scrolls internally, footer stays pinned to bottom */
   .sidebar .sidebar-nav {
     flex: 1;
+    overflow-y: auto;
+    min-height: 0; /* critical — allows flex child to shrink below content size */
+  }
+
+  .sidebar .sidebar-footer {
+    flex-shrink: 0; /* never let the footer be squeezed away */
   }
 
   /* Dim backdrop shown when sidebar is open */
