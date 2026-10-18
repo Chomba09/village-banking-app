@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell, Users, FileText, TrendingDown, RefreshCw } from 'lucide-react'
+import { PiggyBank, HandCoins, CheckCircle2, AlertCircle, Bell, Users, FileText, TrendingDown, RefreshCw, AlertTriangle } from 'lucide-react'
 
 function MemberGroupDetail() {
   const { groupId } = useParams()
@@ -14,6 +14,7 @@ function MemberGroupDetail() {
   const [notices, setNotices] = useState([])
   const [availability, setAvailability] = useState(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [penaltyAccount, setPenaltyAccount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -32,10 +33,11 @@ function MemberGroupDetail() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [groupRes, dashRes, noticesRes] = await Promise.all([
+        const [groupRes, dashRes, noticesRes, accountRes] = await Promise.all([
           api.get(`/groups/${groupId}/`),
           api.get('/dashboard/member/'),
-          api.get(`/notices/group/${groupId}/`)
+          api.get(`/notices/group/${groupId}/`),
+          api.get(`/transactions/account/${groupId}/`).catch(() => null),
         ])
         setGroup(groupRes.data)
         const groupData = dashRes.data.groups.find(
@@ -43,6 +45,7 @@ function MemberGroupDetail() {
         )
         setMemberData(groupData)
         setNotices(noticesRes.data)
+        if (accountRes) setPenaltyAccount(accountRes.data)
       } catch (err) {
         setError('Failed to load group details.')
       } finally {
@@ -71,6 +74,8 @@ function MemberGroupDetail() {
   const poolUsed = availability ? Number(availability.outstanding_loans) : 0
   const poolAvailable = availability ? Number(availability.available_amount) : 0
   const poolPct = poolTotal > 0 ? Math.min(100, (poolUsed / poolTotal) * 100) : 0
+
+  const penaltyBalance = penaltyAccount ? Number(penaltyAccount.balance) : 0
 
   return (
     <DashboardLayout title={group.name}>
@@ -313,6 +318,34 @@ function MemberGroupDetail() {
             </div>
             <div className="stat-card-value" style={{ fontSize: '14px', color: 'var(--purple-600)' }}>View all</div>
             <div style={{ fontSize: '11px', color: 'var(--purple-600)', marginTop: '6px' }}>Contributions & loans →</div>
+          </div>
+        </div>
+      )}
+
+      {/* Outstanding Penalty Balance */}
+      {penaltyBalance > 0 && (
+        <div style={{
+          marginBottom: '24px',
+          borderRadius: 'var(--radius-lg)',
+          border: '1.5px solid rgba(185,28,28,0.35)',
+          background: 'rgba(254,242,242,0.6)',
+          padding: '18px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+        }}>
+          <AlertTriangle size={22} color="#b91c1c" style={{ flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: '700', fontSize: '14px', color: '#b91c1c', marginBottom: '2px' }}>
+              Outstanding Penalty Balance
+            </div>
+            <div style={{ fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
+              You have an outstanding penalty of <strong>K{penaltyBalance.toFixed(2)}</strong> in this group.
+              Please settle this with the treasurer.
+            </div>
+          </div>
+          <div style={{ fontWeight: '800', fontSize: '22px', color: '#b91c1c', whiteSpace: 'nowrap' }}>
+            K{penaltyBalance.toFixed(2)}
           </div>
         </div>
       )}

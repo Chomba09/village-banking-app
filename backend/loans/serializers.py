@@ -136,20 +136,8 @@ class LoanCreateSerializer(serializers.ModelSerializer):
                 f'Maximum loan you can request: K{loan_ceiling:.2f} (double your savings).'
             )
 
-        total_savings = Contribution.objects.filter(
-            group=group, status='confirmed'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-        max_loan_percentage = cycle.max_loan_percentage
-        total_pool = (total_savings * max_loan_percentage / Decimal('100')).quantize(Decimal('0.01'))
-
-        outstanding_loans = Decimal('0.00')
-        from loans.models import Loan
-        for loan in Loan.objects.filter(group=group, status='approved'):
-            if loan.balance_remaining > 0:
-                outstanding_loans += loan.balance_remaining
-
-        available_amount = max(total_pool - outstanding_loans, Decimal('0.00'))
+        from loans.utils import calculate_available_pool
+        available_amount = calculate_available_pool(group)
 
         if amount > available_amount:
             raise serializers.ValidationError(

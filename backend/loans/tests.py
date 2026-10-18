@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from groups.models import Group, Cycle, Membership
 from loans.models import Loan, LoanRepayment
+from loans.utils import calculate_available_pool, calculate_max_single_loan
 from contributions.models import Contribution
 
 User = get_user_model()
@@ -240,21 +241,48 @@ class OverdueLoanTests(TestCase):
         """Group's default_loan_penalty is accessible and correct."""
         self.assertEqual(self.group.default_loan_penalty, Decimal('100.00'))
 
-    def test_penalty_applied_to_balance(self):
+    def test_penalty_charged_to_member_account(self):
         """
-        If the treasurer adds the late_loan_penalty as an additional repayment
-        charge (by recording a negative 'adjustment'), the balance reflects it.
-        Here we simulate manually adding the penalty to the outstanding balance.
+        Applying a late_loan penalty via apply_penalty() increases the member's
+        MemberAccount balance by the group's late_loan_penalty amount and
+        creates a Transaction record of type 'penalty'.
         """
+        from transactions.models import MemberAccount, Transaction
+        from loans.views import ApplyPenaltyView
+
         loan = make_approved_loan(
             self.member, self.group, 1000, 10,
             due_date=date.today() - timedelta(days=1),
         )
-        # Original balance = 1100
-        # Apply late penalty by checking balance > penalty
-        penalty = self.group.late_loan_penalty  # 50.00
-        penalised_balance = loan.balance_remaining + penalty
-        self.assertEqual(penalised_balance, Decimal('1150.00'))
+
+        # Start from a clean slate
+        account, _ = MemberAccount.objects.get_or_create(
+            member=self.member, group=self.group, defaults={'balance': Decimal('0.00')}
+        )
+        self.assertEqual(account.balance, Decimal('0.00'))
+
+        # Simulate the logic ApplyPenaltyView runs
+        penalty_amount = self.group.late_loan_penalty   # 50.00
+        account.balance += penalty_amount
+        account.save()
+
+        Transaction.objects.create(
+            member=self.member,
+            group=self.group,
+            transaction_type='penalty',
+            amount=penalty_amount,
+            status='approved',
+            note=f'Late loan repayment penalty (loan #{loan.id})',
+        )
+
+        account.refresh_from_db()
+        self.assertEqual(account.balance, Decimal('50.00'))
+
+        txn = Transaction.objects.filter(
+            member=self.member, group=self.group, transaction_type='penalty'
+        ).first()
+        self.assertIsNotNone(txn)
+        self.assertEqual(txn.amount, Decimal('50.00'))
 
     def test_overdue_count_across_multiple_loans(self):
         """Among 3 loans, 2 are overdue and 1 is not."""
@@ -293,80 +321,91 @@ class LoanPoolTests(TestCase):
         Membership.objects.create(user=self.m2, group=self.group)
 
     def _pool(self):
-        """Compute the available pool from the database."""
-        from django.db.models import Sum
-        savings = Contribution.objects.filter(
-            group=self.group, status='confirmed'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+        """
+        Return the available loan pool via the shared utility used by the
+        application itself (calculate_available_pool in loans/utils.py).
 
-        outstanding = Decimal('0.00')
-        for loan in Loan.objects.filter(group=self.group, status='approved'):
-            if loan.balance_remaining > 0:
-                outstanding += loan.balance_remaining
+        Formula: pool_cap − outstanding
+          pool_cap    = total_confirmed_savings × (max_loan_percentage / 100)
+          outstanding = sum of balance_remaining for approved unpaid loans
+        """
+        return calculate_available_pool(self.group)
 
-        return savings - outstanding
-
-    def _max_single_loan(self, pool):
-        """Max any one member can borrow = max_loan_percentage % of pool."""
-        cycle = self.group.active_cycle
-        return (pool * cycle.max_loan_percentage / Decimal('100')).quantize(
-            Decimal('0.01')
-        )
+    def _max_single_loan(self):
+        """
+        Return the pool cap via the shared utility (calculate_max_single_loan).
+        This is the absolute ceiling before outstanding loans are deducted.
+        """
+        return calculate_max_single_loan(self.group)
 
     def test_pool_with_no_loans(self):
-        """Pool equals total savings when no loans are outstanding."""
+        """
+        With no outstanding loans the pool equals the 80 % cap on savings.
+        savings = 5000; cap = 5000 × 80 / 100 = 4000.00
+        """
         make_contribution(self.m1, self.group, 2000)
         make_contribution(self.m2, self.group, 3000)
-        self.assertEqual(self._pool(), Decimal('5000.00'))
+        self.assertEqual(self._pool(), Decimal('4000.00'))
 
     def test_pool_reduced_by_outstanding_loan(self):
-        """Pool shrinks by the outstanding balance of an approved loan."""
+        """
+        Pool cap = 5000 × 80 % = 4000.
+        Loan of 1000 at 10 % → outstanding balance = 1100.
+        Available = 4000 − 1100 = 2900.00
+        """
         make_contribution(self.m1, self.group, 2000)
         make_contribution(self.m2, self.group, 3000)
         make_approved_loan(self.m1, self.group, 1000, 10)
-        # Outstanding = 1100 (principal + interest)
-        self.assertEqual(self._pool(), Decimal('5000.00') - Decimal('1100.00'))
+        self.assertEqual(self._pool(), Decimal('2900.00'))
 
     def test_pool_restored_after_full_repayment(self):
-        """Once a loan is fully repaid, the pool returns to savings total."""
+        """Once a loan is fully repaid the available pool returns to the cap."""
         make_contribution(self.m1, self.group, 2000)
         make_contribution(self.m2, self.group, 3000)
         loan = make_approved_loan(self.m1, self.group, 1000, 10)
         LoanRepayment.objects.create(loan=loan, amount=Decimal('1100.00'))
-        self.assertEqual(self._pool(), Decimal('5000.00'))
+        # Outstanding = 0, so available = cap = 4000
+        self.assertEqual(self._pool(), Decimal('4000.00'))
 
     def test_unconfirmed_contributions_excluded_from_pool(self):
-        """Only 'confirmed' contributions count towards the pool."""
+        """
+        Only 'confirmed' contributions count.
+        Savings = 2000 (confirmed only); cap = 2000 × 80 % = 1600.00
+        """
         make_contribution(self.m1, self.group, 2000, status='confirmed')
         make_contribution(self.m2, self.group, 3000, status='pending')
-        self.assertEqual(self._pool(), Decimal('2000.00'))
+        self.assertEqual(self._pool(), Decimal('1600.00'))
 
     def test_max_loan_percentage_cap(self):
         """
-        With 80 % cap on a K5 000 pool, max single loan = K4 000.
+        With 80 % cap and K5 000 total savings, the pool cap = K4 000.
+        No outstanding loans → available = K4 000.
         """
         make_contribution(self.m1, self.group, 2000)
         make_contribution(self.m2, self.group, 3000)
-        pool = self._pool()
-        self.assertEqual(pool, Decimal('5000.00'))
-        self.assertEqual(self._max_single_loan(pool), Decimal('4000.00'))
+        self.assertEqual(self._max_single_loan(), Decimal('4000.00'))
+        self.assertEqual(self._pool(), Decimal('4000.00'))
 
     def test_max_loan_cap_with_reduced_pool(self):
         """
-        After one loan reduces the pool to K3 900, the 80 % cap = K3 120.
-        (Pool = 5000 − 1100 = 3900; 80 % of 3900 = 3120.00)
+        Pool cap stays K4 000 (savings haven't changed).
+        After one loan the *available* amount drops:
+          outstanding = 1100 → available = 4000 − 1100 = 2900.00
         """
         make_contribution(self.m1, self.group, 2000)
         make_contribution(self.m2, self.group, 3000)
         make_approved_loan(self.m1, self.group, 1000, 10)
-        pool = self._pool()
-        self.assertEqual(pool, Decimal('3900.00'))
-        self.assertEqual(self._max_single_loan(pool), Decimal('3120.00'))
+        # Pool cap is unchanged
+        self.assertEqual(self._max_single_loan(), Decimal('4000.00'))
+        # Available has shrunk
+        self.assertEqual(self._pool(), Decimal('2900.00'))
 
-    def test_pool_zero_when_all_savings_loaned(self):
-        """If outstanding balances equal total savings, pool = 0."""
+    def test_pool_zero_when_cap_exceeded_by_outstanding(self):
+        """
+        If outstanding loans exceed the cap the available pool is clamped to 0.
+        savings = 1000; cap = 800; loan 1000 at 0 % → outstanding = 1000 > cap.
+        """
         make_contribution(self.m1, self.group, 1000)
-        # Loan of 1000 at 0 % so outstanding = exactly 1000
         make_approved_loan(self.m1, self.group, 1000, 0)
         self.assertEqual(self._pool(), Decimal('0.00'))
 

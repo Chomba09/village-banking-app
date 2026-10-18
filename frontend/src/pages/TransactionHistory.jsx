@@ -27,6 +27,13 @@ function TransactionHistory() {
     }
   }
 
+  const typeBadgeStyle = (type) => {
+    if (type === 'penalty') {
+      return { background: '#fef2f2', color: '#b91c1c' }
+    }
+    return {}
+  }
+
   if (loading) return <div className="loading">Loading transactions...</div>
 
   return (
@@ -55,6 +62,7 @@ function TransactionHistory() {
           <option value="contribution">Contribution</option>
           <option value="loan_disbursement">Loan Request</option>
           <option value="loan_repayment">Loan Repayment</option>
+          <option value="penalty">Penalty</option>
         </select>
       </div>
 
@@ -81,8 +89,11 @@ function TransactionHistory() {
                 <tr key={tx.id}>
                   <td>{new Date(tx.date).toLocaleDateString()}</td>
                   <td>
-                    <span className={`badge badge-${tx.transaction_type}`}>
-                      {tx.transaction_type.replace('_', ' ')}
+                    <span
+                      className={`badge badge-${tx.transaction_type}`}
+                      style={typeBadgeStyle(tx.transaction_type)}
+                    >
+                      {tx.transaction_type.replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td>{tx.group_name}</td>

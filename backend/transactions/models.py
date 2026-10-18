@@ -5,11 +5,10 @@ from groups.models import Group
 
 class Transaction(models.Model):
     TRANSACTION_TYPES = (
-        ('deposit', 'Deposit'),
-        ('withdrawal', 'Withdrawal'),
         ('contribution', 'Contribution'),
         ('loan_disbursement', 'Loan Request'),
         ('loan_repayment', 'Loan Repayment'),
+        ('penalty', 'Penalty'),
     )
 
     STATUS_CHOICES = (

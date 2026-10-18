@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
 import api from '../api/axios'
-import { Copy, Mail, Phone, UserX, Trash2, Crown, ShieldOff } from 'lucide-react'
+import { Copy, Mail, Phone, UserX, Trash2, Crown, ShieldOff, AlertTriangle } from 'lucide-react'
 
 function TreasurerGroupMembers() {
   const { groupId } = useParams()
@@ -15,6 +15,14 @@ function TreasurerGroupMembers() {
   const [confirmRemove, setConfirmRemove] = useState(null)
   const [confirmChairperson, setConfirmChairperson] = useState(null) // { member, action: 'assign' | 'remove' }
   const [chairpersonMsg, setChairpersonMsg] = useState('')
+
+  // Penalty modal state
+  const [penaltyModal, setPenaltyModal] = useState(null)  // member object or null
+  const [penaltyType, setPenaltyType] = useState('')
+  const [penaltyLoanId, setPenaltyLoanId] = useState('')
+  const [penaltyLoading, setPenaltyLoading] = useState(false)
+  const [penaltyMsg, setPenaltyMsg] = useState('')
+  const [penaltyError, setPenaltyError] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -130,6 +138,55 @@ function TreasurerGroupMembers() {
     }
   }
 
+  const openPenaltyModal = (member) => {
+    setPenaltyModal(member)
+    setPenaltyType('')
+    setPenaltyLoanId('')
+    setPenaltyError('')
+    setPenaltyMsg('')
+  }
+
+  const closePenaltyModal = () => {
+    setPenaltyModal(null)
+    setPenaltyType('')
+    setPenaltyLoanId('')
+    setPenaltyError('')
+  }
+
+  const handleApplyPenalty = async () => {
+    if (!penaltyType) {
+      setPenaltyError('Please select a penalty type.')
+      return
+    }
+    setPenaltyLoading(true)
+    setPenaltyError('')
+    try {
+      const body = {
+        member_id: penaltyModal.user_id,
+        group_id: parseInt(groupId),
+        penalty_type: penaltyType,
+      }
+      if ((penaltyType === 'late_loan' || penaltyType === 'default_loan') && penaltyLoanId) {
+        body.loan_id = penaltyLoanId
+      }
+      await api.post('/loans/apply-penalty/', body)
+      closePenaltyModal()
+      setPenaltyMsg(`Penalty applied to ${penaltyModal.username} successfully.`)
+      setTimeout(() => setPenaltyMsg(''), 5000)
+    } catch (err) {
+      setPenaltyError(err.response?.data?.error || 'Failed to apply penalty.')
+    } finally {
+      setPenaltyLoading(false)
+    }
+  }
+
+  const penaltyTypeLabels = {
+    late_loan: 'Late Loan Repayment',
+    late_savings: 'Late Savings Contribution',
+    no_savings: 'No Savings Contribution',
+    default_loan: 'Loan Default',
+  }
+
   if (loading) return <div className="loading">Loading members...</div>
 
   const activeMembers = members.filter(m => m.status === 'active')
@@ -173,6 +230,19 @@ function TreasurerGroupMembers() {
           <button
             style={{ marginLeft: '12px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', color: 'inherit' }}
             onClick={() => setChairpersonMsg('')}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Penalty success message */}
+      {penaltyMsg && (
+        <div className="alert alert-success" style={{ marginBottom: '16px' }}>
+          {penaltyMsg}
+          <button
+            style={{ marginLeft: '12px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', color: 'inherit' }}
+            onClick={() => setPenaltyMsg('')}
           >
             ×
           </button>
@@ -310,6 +380,115 @@ function TreasurerGroupMembers() {
         </div>
       )}
 
+      {/* Apply Penalty modal */}
+      {penaltyModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.5)',
+          zIndex: 500,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '32px',
+            maxWidth: '440px',
+            width: '100%',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <h3 style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '6px' }}>
+              Apply Penalty
+            </h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: '1.5' }}>
+              Charging a penalty to <strong>{penaltyModal.first_name || penaltyModal.username}</strong>.
+              The amount will be deducted from the configured group penalty rates.
+            </p>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                Penalty Type *
+              </label>
+              <select
+                value={penaltyType}
+                onChange={(e) => setPenaltyType(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 12px',
+                  border: '1.5px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none',
+                }}
+              >
+                <option value="">Select a penalty type…</option>
+                {Object.entries(penaltyTypeLabels).map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
+            </div>
+
+            {(penaltyType === 'late_loan' || penaltyType === 'default_loan') && (
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  Loan ID (optional)
+                </label>
+                <input
+                  type="number"
+                  placeholder="e.g. 42"
+                  value={penaltyLoanId}
+                  onChange={(e) => setPenaltyLoanId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '9px 12px',
+                    border: '1.5px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  If provided, the loan number will be noted in the transaction record.
+                </p>
+              </div>
+            )}
+
+            {penaltyError && (
+              <div className="alert alert-error" style={{ marginBottom: '16px', fontSize: '13px' }}>
+                {penaltyError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                className="btn btn-danger"
+                style={{ flex: 1 }}
+                disabled={penaltyLoading}
+                onClick={handleApplyPenalty}
+              >
+                {penaltyLoading ? 'Applying…' : 'Apply Penalty'}
+              </button>
+              <button
+                className="btn btn-ghost"
+                style={{ flex: 1 }}
+                onClick={closePenaltyModal}
+                disabled={penaltyLoading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Active members */}
       <div className="table-card" style={{ marginBottom: '24px' }}>
         <div className="table-card-header">
@@ -425,6 +604,24 @@ function TreasurerGroupMembers() {
                             Make Chair
                           </button>
                         )
+                      )}
+
+                      {/* Apply Penalty — available for all non-treasurer members */}
+                      {!member.is_treasurer && (
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            background: '#fef2f2',
+                            color: '#b91c1c',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px'
+                          }}
+                          onClick={() => openPenaltyModal(member)}
+                        >
+                          <AlertTriangle size={13} />
+                          Penalty
+                        </button>
                       )}
                     </div>
                   </td>

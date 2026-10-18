@@ -9,6 +9,7 @@ from .views import (
     GroupLoanActivityView,
     ChairpersonPendingLoansView,
     ChairpersonLoanApprovalView,
+    ApplyPenaltyView,
 )
 
 urlpatterns = [
@@ -21,4 +22,5 @@ urlpatterns = [
     path('group/<int:group_id>/activity/', GroupLoanActivityView.as_view(), name='group-loan-activity'),
     path('chairperson/pending/', ChairpersonPendingLoansView.as_view(), name='chairperson-pending-loans'),
     path('<int:pk>/chairperson-approve/', ChairpersonLoanApprovalView.as_view(), name='chairperson-loan-approval'),
+    path('apply-penalty/', ApplyPenaltyView.as_view(), name='apply-penalty'),
 ]
