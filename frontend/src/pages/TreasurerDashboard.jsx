@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../components/DashboardLayout'
-import { Archive } from 'lucide-react'
+import { Archive, AlertTriangle } from 'lucide-react'
 import api from '../api/axios'
 
 function TreasurerDashboard() {
@@ -36,6 +36,14 @@ useEffect(() => {
   if (loading) return <div className="loading">Loading dashboard...</div>
   if (error) return <div className="alert alert-error">{error}</div>
 
+  const overdueLoans = dashboardData.overdue_loans || []
+
+  // Penalties are applied from the group's Members page
+  const openGroupMembers = (groupId) => {
+    localStorage.setItem('active_group_id', groupId)
+    navigate(`/treasurer/groups/${groupId}/members`)
+  }
+
   return (
     <DashboardLayout title="Treasurer Dashboard">
       <h1 className="dashboard-title">Treasurer Dashboard</h1>
@@ -48,7 +56,79 @@ useEffect(() => {
           <div className="stat-card-title">Total Groups</div>
           <div className="stat-card-value">{dashboardData.total_groups}</div>
         </div>
+        <div className="stat-card">
+          <div className="stat-card-title">Overdue Loans</div>
+          <div
+            className="stat-card-value"
+            style={{ color: overdueLoans.length > 0 ? '#b91c1c' : undefined }}
+          >
+            {overdueLoans.length}
+          </div>
+        </div>
       </div>
+
+      {overdueLoans.length > 0 && (
+        <div className="table-card" style={{ marginBottom: '28px', border: '1px solid #fca5a5' }}>
+          <div
+            className="table-card-header"
+            style={{ borderBottom: '2px solid #b91c1c', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <AlertTriangle size={16} color="#b91c1c" />
+            <span style={{ fontWeight: '700', color: '#b91c1c' }}>
+              Overdue Loans ({overdueLoans.length})
+            </span>
+          </div>
+          <p style={{ padding: '10px 16px 0', margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+            These loans are past their due date and still have a balance. Click a row to open the
+            group's members and apply a late loan penalty.
+          </p>
+          <div style={{ overflowX: 'auto', padding: '8px 16px 16px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                  <th style={{ padding: '8px 6px' }}>Member</th>
+                  <th style={{ padding: '8px 6px' }}>Group</th>
+                  <th style={{ padding: '8px 6px', textAlign: 'right' }}>Balance</th>
+                  <th style={{ padding: '8px 6px' }}>Due Date</th>
+                  <th style={{ padding: '8px 6px', textAlign: 'right' }}>Days Overdue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overdueLoans.map((loan) => (
+                  <tr
+                    key={loan.loan_id}
+                    onClick={() => openGroupMembers(loan.group_id)}
+                    style={{ cursor: 'pointer', borderTop: '1px solid var(--border-color)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(185, 28, 28, 0.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <td style={{ padding: '10px 6px', fontWeight: '600' }}>{loan.member_name}</td>
+                    <td style={{ padding: '10px 6px' }}>{loan.group_name}</td>
+                    <td style={{ padding: '10px 6px', textAlign: 'right', fontWeight: '700', color: '#b91c1c' }}>
+                      K{Number(loan.balance_remaining).toFixed(2)}
+                    </td>
+                    <td style={{ padding: '10px 6px' }}>
+                      {new Date(loan.due_date).toLocaleDateString('en-GB')}
+                    </td>
+                    <td style={{ padding: '10px 6px', textAlign: 'right' }}>
+                      <span style={{
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        padding: '2px 10px',
+                        borderRadius: '20px',
+                        fontWeight: '700',
+                        fontSize: '12px'
+                      }}>
+                        {loan.days_overdue} {loan.days_overdue === 1 ? 'day' : 'days'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
         {dashboardData.groups.map((group) => (
@@ -65,15 +145,29 @@ useEffect(() => {
           >
             <div className="table-card-header" style={{ borderBottom: '2px solid var(--accent-primary)' }}>
               <span style={{ fontWeight: '700' }}>{group.group_name}</span>
-              <span style={{
-                fontSize: '11px',
-                background: 'var(--accent-primary)',
-                color: 'white',
-                padding: '2px 10px',
-                borderRadius: '20px',
-                fontWeight: '600'
-              }}>
-                {group.members_count} members
+              <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                {group.overdue_count > 0 && (
+                  <span style={{
+                    fontSize: '11px',
+                    background: '#fee2e2',
+                    color: '#b91c1c',
+                    padding: '2px 10px',
+                    borderRadius: '20px',
+                    fontWeight: '700'
+                  }}>
+                    {group.overdue_count} overdue
+                  </span>
+                )}
+                <span style={{
+                  fontSize: '11px',
+                  background: 'var(--accent-primary)',
+                  color: 'white',
+                  padding: '2px 10px',
+                  borderRadius: '20px',
+                  fontWeight: '600'
+                }}>
+                  {group.members_count} members
+                </span>
               </span>
             </div>
 

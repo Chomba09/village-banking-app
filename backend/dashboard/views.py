@@ -24,6 +24,8 @@ class TreasurerDashboardView(APIView):
             is_archived=False
         )
         group_summaries = []
+        overdue_loans = []
+        today = timezone.localdate()
 
         for group in groups:
             members_count = Membership.objects.filter(
@@ -56,11 +58,27 @@ class TreasurerDashboardView(APIView):
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
             # Outstanding — approved loans not fully paid
+            # Overdue — still owing money after the due date has passed
             outstanding_balance = Decimal('0.00')
-            for loan in approved_loans:
+            group_overdue_count = 0
+            for loan in approved_loans.select_related('member'):
                 balance = loan.balance_remaining
                 if balance > 0:
                     outstanding_balance += balance
+                    if loan.due_date and loan.due_date < today:
+                        group_overdue_count += 1
+                        member = loan.member
+                        overdue_loans.append({
+                            'loan_id': loan.id,
+                            'group_id': group.id,
+                            'group_name': group.name,
+                            'member_username': member.username,
+                            'member_name': f'{member.first_name} {member.last_name}'.strip() or member.username,
+                            'total_due': loan.total_due,
+                            'balance_remaining': balance,
+                            'due_date': loan.due_date,
+                            'days_overdue': (today - loan.due_date).days,
+                        })
 
             group_summaries.append({
                 'group_id': group.id,
@@ -71,12 +89,17 @@ class TreasurerDashboardView(APIView):
                 'pending_loan_applications': pending_loans,
                 'total_repaid': total_repaid,
                 'outstanding_balance': outstanding_balance,
+                'overdue_count': group_overdue_count,
             })
+
+        # Most overdue first
+        overdue_loans.sort(key=lambda l: l['days_overdue'], reverse=True)
 
         return Response({
             'treasurer': request.user.username,
             'total_groups': groups.count(),
             'groups': group_summaries,
+            'overdue_loans': overdue_loans,
         })
 
 
