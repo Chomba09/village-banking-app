@@ -31,6 +31,9 @@ function TransactionHistory() {
     if (type === 'penalty') {
       return { background: '#fef2f2', color: '#b91c1c' }
     }
+    if (type === 'penalty_payment') {
+      return { background: '#e3f3eb', color: '#1e7a52' }
+    }
     return {}
   }
 
@@ -63,6 +66,7 @@ function TransactionHistory() {
           <option value="loan_disbursement">Loan Request</option>
           <option value="loan_repayment">Loan Repayment</option>
           <option value="penalty">Penalty</option>
+          <option value="penalty_payment">Penalty Payment</option>
         </select>
       </div>
 

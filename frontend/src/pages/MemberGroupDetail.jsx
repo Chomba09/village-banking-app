@@ -15,6 +15,38 @@ function MemberGroupDetail() {
   const [availability, setAvailability] = useState(null)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
   const [penaltyAccount, setPenaltyAccount] = useState(null)
+  // Paying a penalty from the banner
+  const [payOpen, setPayOpen] = useState(false)
+  const [payAmount, setPayAmount] = useState('')
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState('')
+  const [payMsg, setPayMsg] = useState('')
+
+  const handlePayPenalty = async () => {
+    setPayError('')
+    const amount = Number(payAmount)
+    if (!amount || amount <= 0) {
+      setPayError('Enter an amount greater than K0.')
+      return
+    }
+    setPaying(true)
+    try {
+      const res = await api.post('/loans/pay-penalty/', { group_id: Number(groupId), amount })
+      const accountRes = await api.get(`/transactions/account/${groupId}/`)
+      setPenaltyAccount(accountRes.data)
+      setPayMsg(
+        `Penalty payment of K${Number(res.data.amount_paid).toFixed(2)} recorded. ` +
+        `It goes into the group's income, which is shared out at the end of the cycle.`
+      )
+      setTimeout(() => setPayMsg(''), 6000)
+      setPayOpen(false)
+      setPayAmount('')
+    } catch (err) {
+      setPayError(err.response?.data?.error || 'Payment failed. Please try again.')
+    } finally {
+      setPaying(false)
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -322,6 +354,8 @@ function MemberGroupDetail() {
         </div>
       )}
 
+      {payMsg && <div className="alert alert-success">{payMsg}</div>}
+
       {/* Outstanding Penalty Balance */}
       {penaltyBalance > 0 && (
         <div style={{
@@ -330,23 +364,87 @@ function MemberGroupDetail() {
           border: '1.5px solid rgba(185,28,28,0.35)',
           background: 'rgba(254,242,242,0.6)',
           padding: '18px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
         }}>
-          <AlertTriangle size={22} color="#b91c1c" style={{ flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: '700', fontSize: '14px', color: '#b91c1c', marginBottom: '2px' }}>
-              Outstanding Penalty Balance
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <AlertTriangle size={22} color="#b91c1c" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: '200px' }}>
+              <div style={{ fontWeight: '700', fontSize: '14px', color: '#b91c1c', marginBottom: '2px' }}>
+                Outstanding Penalty Balance
+              </div>
+              <div style={{ fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
+                You have an outstanding penalty of <strong>K{penaltyBalance.toFixed(2)}</strong> in this group.
+                Penalties you pay go into the group's income and are shared out at the end of the cycle.
+              </div>
             </div>
-            <div style={{ fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
-              You have an outstanding penalty of <strong>K{penaltyBalance.toFixed(2)}</strong> in this group.
-              Please settle this with the treasurer.
+            <div style={{ fontWeight: '800', fontSize: '22px', color: '#b91c1c', whiteSpace: 'nowrap' }}>
+              K{penaltyBalance.toFixed(2)}
             </div>
+            {!payOpen && (
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ width: 'auto', background: '#b91c1c', color: '#fff' }}
+                onClick={() => {
+                  setPayAmount(penaltyBalance.toFixed(2))
+                  setPayError('')
+                  setPayOpen(true)
+                }}
+              >
+                Pay penalty
+              </button>
+            )}
           </div>
-          <div style={{ fontWeight: '800', fontSize: '22px', color: '#b91c1c', whiteSpace: 'nowrap' }}>
-            K{penaltyBalance.toFixed(2)}
-          </div>
+
+          {payOpen && (
+            <div style={{
+              marginTop: '14px',
+              paddingTop: '14px',
+              borderTop: '1px solid rgba(185,28,28,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexWrap: 'wrap',
+            }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#7f1d1d' }}>
+                Amount (K)
+              </label>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                max={penaltyBalance}
+                value={payAmount}
+                onChange={(e) => setPayAmount(e.target.value)}
+                style={{
+                  width: '130px',
+                  padding: '8px 10px',
+                  border: '1.5px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                }}
+              />
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ width: 'auto', background: '#b91c1c', color: '#fff' }}
+                disabled={paying}
+                onClick={handlePayPenalty}
+              >
+                {paying ? 'Paying…' : 'Confirm payment'}
+              </button>
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ width: 'auto' }}
+                disabled={paying}
+                onClick={() => { setPayOpen(false); setPayError('') }}
+              >
+                Cancel
+              </button>
+              {payError && (
+                <div style={{ width: '100%', fontSize: '13px', color: '#b91c1c' }}>{payError}</div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

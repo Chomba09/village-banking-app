@@ -9,6 +9,7 @@ class Transaction(models.Model):
         ('loan_disbursement', 'Loan Request'),
         ('loan_repayment', 'Loan Repayment'),
         ('penalty', 'Penalty'),
+        ('penalty_payment', 'Penalty Payment'),
     )
 
     STATUS_CHOICES = (

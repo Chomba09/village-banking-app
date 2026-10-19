@@ -408,6 +408,13 @@ class ApplyPenaltyView(APIView):
         if penalty_type in ('late_loan', 'default_loan'):
             loan_id = request.data.get('loan_id')
             if loan_id:
+                # The loan number in the note is what removes the loan from the
+                # treasurer's overdue list, so it must be this member's loan.
+                if not Loan.objects.filter(pk=loan_id, member=member, group=group).exists():
+                    return Response(
+                        {'error': f'Loan #{loan_id} is not a loan of this member in this group.'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 description = f'{description} (loan #{loan_id})'
 
         # Debit the member's account by increasing their balance owed
@@ -462,3 +469,76 @@ class GroupLoanActivityView(generics.ListAPIView):
             group__memberships__user=self.request.user,
             group__memberships__status='active'
         ).distinct().order_by('-applied_at')
+
+
+class PayPenaltyView(APIView):
+    """
+    A member pays off (part of) the penalties charged to them in a group.
+
+    POST body:
+        group_id – the group the penalty belongs to
+        amount   – how much is being paid (more than 0, at most what is owed)
+
+    The amount is taken off the member's MemberAccount.balance and recorded as
+    a 'penalty_payment' Transaction. Paid penalties count as group income and
+    are shared out with interest at the end of the cycle (CycleReportView).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from decimal import Decimal, InvalidOperation
+        from groups.models import Group, Membership
+        from transactions.models import MemberAccount
+
+        try:
+            group = Group.objects.get(pk=request.data.get('group_id'), is_archived=False)
+        except (Group.DoesNotExist, ValueError, TypeError):
+            return Response({'error': 'Group not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if not Membership.objects.filter(user=request.user, group=group, status='active').exists():
+            return Response({'error': 'You are not an active member of this group.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            amount = Decimal(str(request.data.get('amount'))).quantize(Decimal('0.01'))
+        except (InvalidOperation, ValueError, TypeError):
+            return Response({'error': 'Enter a valid amount.'}, status=status.HTTP_400_BAD_REQUEST)
+        if amount <= 0:
+            return Response({'error': 'Amount must be more than K0.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        account = MemberAccount.objects.filter(member=request.user, group=group).first()
+        owed = account.balance if account else Decimal('0.00')
+        if owed <= 0:
+            return Response({'error': 'You have no outstanding penalties in this group.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+        if amount > owed:
+            return Response({'error': f'You only owe K{owed:.2f} in penalties.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        account.balance = owed - amount
+        account.save()
+
+        Transaction.objects.create(
+            member=request.user,
+            group=group,
+            transaction_type='penalty_payment',
+            amount=amount,
+            status='approved',
+            note='Penalty payment',
+        )
+        send_notification(
+            request.user,
+            f'Your penalty payment of K{amount:.2f} to {group.name} has been recorded. '
+            f'Penalties still owed: K{account.balance:.2f}.'
+        )
+        if group.treasurer and group.treasurer != request.user:
+            send_notification(
+                group.treasurer,
+                f'{request.user.username} paid K{amount:.2f} in penalties to {group.name}.'
+            )
+
+        return Response({
+            'message': 'Penalty payment recorded.',
+            'amount_paid': amount,
+            'balance': account.balance,
+        }, status=status.HTTP_200_OK)

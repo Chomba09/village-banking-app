@@ -6,7 +6,9 @@ from decimal import Decimal
 from groups.models import Group, Membership
 from contributions.models import Contribution
 from loans.models import Loan
+from transactions.models import Transaction
 from django.utils import timezone
+import re
 
 
 class TreasurerDashboardView(APIView):
@@ -57,21 +59,36 @@ class TreasurerDashboardView(APIView):
                 loan__group=group
             ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
+            # Loans that have already been charged a late/default penalty.
+            # ApplyPenaltyView writes "(loan #<id>)" into the penalty note.
+            penalised_loan_ids = set()
+            penalty_notes = Transaction.objects.filter(
+                group=group, transaction_type='penalty', note__contains='(loan #'
+            ).values_list('note', flat=True)
+            for note in penalty_notes:
+                match = re.search(r'\(loan #(\d+)\)', note or '')
+                if match:
+                    penalised_loan_ids.add(int(match.group(1)))
+
             # Outstanding — approved loans not fully paid
-            # Overdue — still owing money after the due date has passed
+            # Overdue — still owing money after the due date has passed,
+            # and not yet penalised (so the treasurer cannot charge twice)
             outstanding_balance = Decimal('0.00')
             group_overdue_count = 0
             for loan in approved_loans.select_related('member'):
                 balance = loan.balance_remaining
                 if balance > 0:
                     outstanding_balance += balance
-                    if loan.due_date and loan.due_date < today:
+                    if (loan.due_date and loan.due_date < today
+                            and loan.id not in penalised_loan_ids):
                         group_overdue_count += 1
                         member = loan.member
                         overdue_loans.append({
                             'loan_id': loan.id,
                             'group_id': group.id,
                             'group_name': group.name,
+                            'member_id': member.id,
+                            'late_loan_penalty': group.late_loan_penalty,
                             'member_username': member.username,
                             'member_name': f'{member.first_name} {member.last_name}'.strip() or member.username,
                             'total_due': loan.total_due,
@@ -232,10 +249,10 @@ class CycleReportView(APIView):
 
     def get(self, request, group_id):
         try:
+            # Archived groups are included so their final cycle report stays viewable
             group = Group.objects.get(
                 id=group_id,
                 memberships__user=request.user,
-                is_archived=False
             )
         except Group.DoesNotExist:
             return Response(
@@ -269,15 +286,21 @@ class CycleReportView(APIView):
             loan__group=group
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        # Calculate actual interest collected from repayments
-        # Interest earned = total interest charged on approved loans
-        total_interest_earned = Decimal('0.00')
-        all_approved_loans = Loan.objects.filter(
-            group=group,
-            status__in=['approved', 'fully_paid']
+        # Group income = interest on approved loans + penalties members have paid
+        from loans.utils import calculate_group_income, calculate_interest_shares
+        total_interest_earned, penalties_collected = calculate_group_income(group)
+        total_income = total_interest_earned + penalties_collected
+
+        # Income shares, rounded down to whole kwacha (see loans.utils)
+        savings_by_member = {
+            m.user_id: Contribution.objects.filter(
+                member_id=m.user_id, group=group, status='confirmed'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            for m in members
+        }
+        interest_shares, undistributed_interest = calculate_interest_shares(
+            savings_by_member, total_income
         )
-        for loan in all_approved_loans:
-            total_interest_earned += loan.interest_amount
 
         member_reports = []
 
@@ -327,14 +350,8 @@ class CycleReportView(APIView):
             # Eligible loan amount (double savings)
             eligible_amount = total_savings * Decimal('2')
 
-            # Interest earned share
-            # Proportional to member's savings vs total group savings
-            if total_group_savings > 0:
-                interest_share = (
-                    total_savings / total_group_savings * total_interest_earned
-                ).quantize(Decimal('0.01'))
-            else:
-                interest_share = Decimal('0.00')
+            # Share of group income (interest + paid penalties), whole kwacha
+            interest_share = interest_shares[user.id]
 
             # Final payout at end of cycle
             # Member gets back their savings + their share of interest earned
@@ -369,6 +386,10 @@ class CycleReportView(APIView):
             'total_eligible': sum(m['eligible_amount'] for m in member_reports),
             'total_interest_shared': sum(m['interest_earned_share'] for m in member_reports),
             'total_payout': sum(m['final_payout'] for m in member_reports),
+            # Rounding remainder kept in the group fund (shares are whole kwacha)
+            'undistributed_interest': undistributed_interest,
+            'total_penalties_collected': penalties_collected,
+            'total_income': total_income,
         }
 
         return Response({

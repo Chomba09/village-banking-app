@@ -11,11 +11,45 @@ function TreasurerDashboard() {
   const [error, setError] = useState('')
   const [archivedGroups, setArchivedGroups] = useState([])
 
+  // Overdue-loan penalty: which row is asking "are you sure?", which is sending
+  const [confirmingLoanId, setConfirmingLoanId] = useState(null)
+  const [chargingLoanId, setChargingLoanId] = useState(null)
+  const [penaltyMsg, setPenaltyMsg] = useState('')
+  const [penaltyError, setPenaltyError] = useState('')
+
+  const loadDashboard = async () => {
+    const dashRes = await api.get('/dashboard/treasurer/')
+    setDashboardData(dashRes.data)
+  }
+
+  const chargeLatePenalty = async (loan) => {
+    setChargingLoanId(loan.loan_id)
+    setPenaltyError('')
+    try {
+      await api.post('/loans/apply-penalty/', {
+        member_id: loan.member_id,
+        group_id: loan.group_id,
+        penalty_type: 'late_loan',
+        loan_id: loan.loan_id,
+      })
+      setPenaltyMsg(
+        `Late loan penalty of K${Number(loan.late_loan_penalty).toFixed(2)} charged to ${loan.member_name}. ` +
+        `They have been notified.`
+      )
+      setTimeout(() => setPenaltyMsg(''), 6000)
+      await loadDashboard() // the charged loan drops off the overdue list
+    } catch (err) {
+      setPenaltyError(err.response?.data?.error || 'Failed to apply penalty.')
+    } finally {
+      setChargingLoanId(null)
+      setConfirmingLoanId(null)
+    }
+  }
+
 useEffect(() => {
   const fetchData = async () => {
     try {
-      const dashRes = await api.get('/dashboard/treasurer/')
-      setDashboardData(dashRes.data)
+      await loadDashboard()
     } catch (err) {
       setError('Failed to load dashboard data.')
       setLoading(false)
@@ -37,12 +71,6 @@ useEffect(() => {
   if (error) return <div className="alert alert-error">{error}</div>
 
   const overdueLoans = dashboardData.overdue_loans || []
-
-  // Penalties are applied from the group's Members page
-  const openGroupMembers = (groupId) => {
-    localStorage.setItem('active_group_id', groupId)
-    navigate(`/treasurer/groups/${groupId}/members`)
-  }
 
   return (
     <DashboardLayout title="Treasurer Dashboard">
@@ -67,22 +95,30 @@ useEffect(() => {
         </div>
       </div>
 
+      {penaltyMsg && (
+        <div className="alert alert-success">{penaltyMsg}</div>
+      )}
+      {penaltyError && (
+        <div className="alert alert-error">{penaltyError}</div>
+      )}
+
       {overdueLoans.length > 0 && (
         <div className="table-card" style={{ marginBottom: '28px', border: '1px solid #fca5a5' }}>
           <div
             className="table-card-header"
             style={{ borderBottom: '2px solid #b91c1c', display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            <AlertTriangle size={16} color="#b91c1c" />
-            <span style={{ fontWeight: '700', color: '#b91c1c' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '700', color: '#b91c1c' }}>
+              <AlertTriangle size={16} color="#b91c1c" />
               Overdue Loans ({overdueLoans.length})
             </span>
           </div>
           <p style={{ padding: '10px 16px 0', margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
-            These loans are past their due date and still have a balance. Click a row to open the
-            group's members and apply a late loan penalty.
+            These loans are past their due date and still have a balance. Charging the late loan
+            penalty adds it to the member's account, notifies them, and removes the loan from this list.
           </p>
-          <div style={{ overflowX: 'auto', padding: '8px 16px 16px' }}>
+          {/* contain: inline-size stops the table's width from stretching the page on phones */}
+          <div style={{ overflowX: 'auto', padding: '8px 16px 16px', contain: 'inline-size' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ textAlign: 'left', color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
@@ -91,16 +127,14 @@ useEffect(() => {
                   <th style={{ padding: '8px 6px', textAlign: 'right' }}>Balance</th>
                   <th style={{ padding: '8px 6px' }}>Due Date</th>
                   <th style={{ padding: '8px 6px', textAlign: 'right' }}>Days Overdue</th>
+                  <th style={{ padding: '8px 6px', textAlign: 'right' }}>Penalty</th>
                 </tr>
               </thead>
               <tbody>
                 {overdueLoans.map((loan) => (
                   <tr
                     key={loan.loan_id}
-                    onClick={() => openGroupMembers(loan.group_id)}
-                    style={{ cursor: 'pointer', borderTop: '1px solid var(--border-color)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(185, 28, 28, 0.06)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    style={{ borderTop: '1px solid var(--border-color)' }}
                   >
                     <td style={{ padding: '10px 6px', fontWeight: '600' }}>{loan.member_name}</td>
                     <td style={{ padding: '10px 6px' }}>{loan.group_name}</td>
@@ -121,6 +155,43 @@ useEffect(() => {
                       }}>
                         {loan.days_overdue} {loan.days_overdue === 1 ? 'day' : 'days'}
                       </span>
+                    </td>
+                    <td style={{ padding: '10px 6px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {Number(loan.late_loan_penalty) <= 0 ? (
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          No penalty set
+                        </span>
+                      ) : confirmingLoanId === loan.loan_id ? (
+                        <span style={{ display: 'inline-flex', gap: '6px' }}>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            style={{ width: 'auto', background: '#b91c1c', color: '#fff' }}
+                            disabled={chargingLoanId === loan.loan_id}
+                            onClick={() => chargeLatePenalty(loan)}
+                          >
+                            {chargingLoanId === loan.loan_id ? 'Charging…' : 'Confirm'}
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            style={{ width: 'auto' }}
+                            disabled={chargingLoanId === loan.loan_id}
+                            onClick={() => setConfirmingLoanId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          className="btn btn-danger btn-sm"
+                          style={{ width: 'auto' }}
+                          onClick={() => {
+                            setPenaltyError('')
+                            setConfirmingLoanId(loan.loan_id)
+                          }}
+                        >
+                          Charge K{Number(loan.late_loan_penalty).toFixed(0)} penalty
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

@@ -67,6 +67,8 @@ function CycleReport() {
         ['Total Repaid', fmt(report.group_totals.total_repaid)],
         ['Total Outstanding', fmt(report.group_totals.total_outstanding)],
         ['Total Payout', fmt(report.group_totals.total_payout)],
+        ['Penalties Collected', fmt(report.group_totals.total_penalties_collected || 0)],
+        ['Undistributed', fmt(report.group_totals.undistributed_interest || 0)],
       ]
       const colW = (pageW - margin * 2) / summaryItems.length
       summaryItems.forEach(([label, value], i) => {
@@ -83,7 +85,7 @@ function CycleReport() {
       const tableHead = [
         ['#', 'Member', 'Total\nSavings', 'Loan\nTaken', 'Interest\nCharged',
          'Loan\nPayable', 'Total\nRepaid', 'Outstanding\nBalance',
-         'Eligible\nAmount', 'Interest\nShare', 'Final\nPayout']
+         'Eligible\nAmount', 'Income\nShare', 'Final\nPayout']
       ]
 
       const tableBody = report.member_reports.map((m, i) => [
@@ -156,8 +158,8 @@ function CycleReport() {
       doc.setTextColor(100)
       const notes = [
         'Eligible Amount = Total savings × 2 (maximum loan a member can request)',
-        'Interest Share = (Member savings ÷ Total group savings) × Total interest earned',
-        'Final Payout = Total savings + Interest share (amount member receives at end of cycle)',
+        'Income Share = (Member savings ÷ Total group savings) × (Interest earned + Penalties collected), rounded down to whole kwacha',
+        'Final Payout = Total savings + Income share (amount member receives at end of cycle)',
         'Members with outstanding balances must clear them before the next cycle begins',
       ]
       notes.forEach((note, i) => {
@@ -249,6 +251,8 @@ function CycleReport() {
           { label: 'Total Repaid', value: fmt(group_totals.total_repaid) },
           { label: 'Total Outstanding', value: fmt(group_totals.total_outstanding) },
           { label: 'Total Payout', value: fmt(group_totals.total_payout) },
+          { label: 'Penalties Collected', value: fmt(group_totals.total_penalties_collected || 0) },
+          { label: 'Undistributed', value: fmt(group_totals.undistributed_interest || 0) },
         ].map(item => (
           <div key={item.label} className="stat-card">
             <div className="stat-card-title">{item.label}</div>
@@ -281,7 +285,7 @@ function CycleReport() {
               <th>Repayments</th>
               <th>Outstanding</th>
               <th>Eligible Amount</th>
-              <th>Interest Share</th>
+              <th>Income Share</th>
               <th>Final Payout</th>
             </tr>
           </thead>
@@ -410,8 +414,10 @@ function CycleReport() {
       }}>
         <strong style={{ color: 'var(--text-primary)' }}>Notes:</strong><br />
         • <strong>Eligible Amount</strong> = Total savings × 2 (maximum loan a member can request)<br />
-        • <strong>Interest Share</strong> = (Member savings ÷ Total group savings) × Total interest earned<br />
-        • <strong>Final Payout</strong> = Total savings + Interest share (amount member receives at end of cycle)<br />
+        • <strong>Group income</strong> = Interest earned on loans + Penalties members have paid<br />
+        • <strong>Income Share</strong> = (Member savings ÷ Total group savings) × Group income, rounded down to whole kwacha so it can be paid out in cash<br />
+        • <strong>Undistributed</strong> = the few kwacha left over from rounding down; it stays in the group fund<br />
+        • <strong>Final Payout</strong> = Total savings + Income share (amount member receives at end of cycle)<br />
         • Members highlighted in purple are treasurer contributions/loans<br />
         • Members with outstanding balances must clear them before contributing to the next cycle
       </div>

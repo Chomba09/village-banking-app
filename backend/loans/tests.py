@@ -420,10 +420,12 @@ class CycleReportPayoutTests(TestCase):
         final_payout = member_savings + interest_earned_share
 
     Where:
-        interest_earned_share = (member_savings / total_group_savings) × total_interest_earned
+        interest_earned_share = floor((member_savings / total_group_savings) × total_interest_earned)
+        (whole kwacha; the remainder stays in the group fund as undistributed interest)
         total_interest_earned = sum of interest_amount across all approved/fully_paid loans
 
-    These tests mirror the logic in dashboard/views.py → CycleReportView.
+    Both these tests and dashboard/views.py → CycleReportView call
+    loans.utils.calculate_interest_shares, so they test the same code.
     """
 
     def setUp(self):
@@ -442,24 +444,26 @@ class CycleReportPayoutTests(TestCase):
             group=self.group, status='confirmed'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
 
-        all_loans = Loan.objects.filter(
-            group=self.group, status__in=['approved', 'fully_paid']
+        from loans.utils import calculate_group_income
+        interest, penalties = calculate_group_income(self.group)
+        total_interest_earned = interest + penalties   # total group income
+
+        from loans.utils import calculate_interest_shares
+
+        savings_by_member = {
+            user.username: Contribution.objects.filter(
+                member=user, group=self.group, status='confirmed'
+            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            for user in [self.m1, self.m2]
+        }
+        shares, self.undistributed = calculate_interest_shares(
+            savings_by_member, total_interest_earned
         )
-        total_interest_earned = sum(l.interest_amount for l in all_loans)
 
         reports = {}
         for user in [self.m1, self.m2]:
-            savings = Contribution.objects.filter(
-                member=user, group=self.group, status='confirmed'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-
-            if total_group_savings > 0:
-                interest_share = (
-                    savings / total_group_savings * total_interest_earned
-                ).quantize(Decimal('0.01'))
-            else:
-                interest_share = Decimal('0.00')
-
+            savings = savings_by_member[user.username]
+            interest_share = shares[user.username]
             reports[user.username] = {
                 'savings': savings,
                 'interest_share': interest_share,
@@ -518,10 +522,26 @@ class CycleReportPayoutTests(TestCase):
         make_approved_loan(self.m2, self.group, 500, 10)
         reports, _, total_interest = self._compute_report()
         total_shared = sum(r['interest_share'] for r in reports.values())
-        # Allow ±0.01 for rounding across members
-        self.assertAlmostEqual(
-            float(total_shared), float(total_interest), delta=0.01
-        )
+        # Shares are whole kwacha; the rounding remainder stays in the group,
+        # so shares + undistributed must equal the interest earned exactly.
+        self.assertEqual(total_shared + self.undistributed, total_interest)
+
+    def test_interest_shares_are_whole_kwacha_and_never_exceed_total(self):
+        """Uneven splits round DOWN to whole kwacha; the remainder is kept."""
+        from loans.utils import calculate_interest_shares
+        savings = {'a': Decimal('1200'), 'b': Decimal('1000'), 'c': Decimal('800')}
+        shares, undistributed = calculate_interest_shares(savings, Decimal('510.00'))
+        # Exact splits would be 204.00, 170.00, 136.00 – already whole
+        self.assertEqual(shares, {'a': Decimal('204.00'), 'b': Decimal('170.00'), 'c': Decimal('136.00')})
+        self.assertEqual(undistributed, Decimal('0.00'))
+
+        shares, undistributed = calculate_interest_shares(savings, Decimal('100.00'))
+        # Exact splits 40.00, 33.33…, 26.66… → 40, 33, 26 and K1.00 kept
+        self.assertEqual(shares, {'a': Decimal('40.00'), 'b': Decimal('33.00'), 'c': Decimal('26.00')})
+        self.assertEqual(undistributed, Decimal('1.00'))
+        for s in shares.values():
+            self.assertEqual(s, s.to_integral_value())
+        self.assertLessEqual(sum(shares.values()), Decimal('100.00'))
 
     def test_payout_zero_savings_member_gets_nothing(self):
         """A member who contributed nothing receives a zero payout."""
@@ -544,3 +564,52 @@ class CycleReportPayoutTests(TestCase):
         make_approved_loan(self.m2, self.group, 2000, 10)
         _, _, total_interest = self._compute_report()
         self.assertEqual(total_interest, Decimal('300.00'))
+
+
+class PenaltyPaymentTests(TestCase):
+    """
+    Members pay penalties from their group page (POST /api/loans/pay-penalty/).
+    A payment lowers what they owe and becomes group income, shared out with
+    interest at the end of the cycle.
+    """
+
+    def setUp(self):
+        from rest_framework.test import APIClient
+        from transactions.models import MemberAccount
+        self.treasurer = make_user('treasurer5', 'treasurer')
+        self.member = make_user('grace')
+        self.other = make_user('henry')
+        self.group = make_group(self.treasurer, interest_rate='10.00')
+        for u in (self.member, self.other):
+            Membership.objects.create(user=u, group=self.group, status='active')
+        MemberAccount.objects.create(member=self.member, group=self.group, balance=Decimal('50.00'))
+        self.client = APIClient()
+        self.client.force_authenticate(self.member)
+
+    def pay(self, amount):
+        return self.client.post('/api/loans/pay-penalty/',
+                                {'group_id': self.group.id, 'amount': amount}, format='json')
+
+    def test_payment_reduces_balance_and_is_recorded(self):
+        from transactions.models import MemberAccount, Transaction
+        r = self.pay('30')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(MemberAccount.objects.get(member=self.member, group=self.group).balance,
+                         Decimal('20.00'))
+        self.assertTrue(Transaction.objects.filter(
+            member=self.member, transaction_type='penalty_payment', amount=Decimal('30.00')).exists())
+
+    def test_cannot_pay_more_than_owed_or_zero(self):
+        self.assertEqual(self.pay('60').status_code, 400)
+        self.assertEqual(self.pay('0').status_code, 400)
+
+    def test_paid_penalties_become_group_income(self):
+        from loans.utils import calculate_group_income
+        make_contribution(self.member, self.group, 500)
+        make_contribution(self.other, self.group, 500)
+        make_approved_loan(self.other, self.group, 1000, 10)   # K100 interest
+        self.pay('50')
+        interest, penalties = calculate_group_income(self.group)
+        self.assertEqual((interest, penalties), (Decimal('100.00'), Decimal('50.00')))
+        # Unpaid penalties are not income: only the K50 actually paid counts
+        self.assertEqual(self.pay('1').status_code, 400)
